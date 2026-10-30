@@ -190,18 +190,51 @@ openinfra-lab-kit/
 
 ## Execution
 
-현재 Stage 0는 다음 순서로 실행합니다.
+Stage 0는 Makefile을 통해 실행할 수 있습니다.
+
+사용 가능한 명령은 다음과 같습니다.
 
 ```bash
-bash stage0/preflight.sh
-bash stage0/install.sh
-bash stage0/postcheck.sh
+make help
 ```
 
-`preflight.sh`가 실패한 경우 환경 문제를 먼저 해결한 후 설치를 진행해야 합니다.
+설치 전 환경 검사:
+
+```bash
+make preflight
+```
+
+Stage 0에 필요한 도구 설치:
+
+```bash
+make install
+```
+
+설치 후 환경 검증:
+
+```bash
+make postcheck
+```
+
+Stage 0 전체 실행:
+
+```bash
+make stage-0
+```
+
+`make stage-0`은 다음 순서로 작업을 수행합니다.
+
+```text
+preflight
+    ↓
+install
+    ↓
+postcheck
+```
+
+Preflight 단계에서 문제가 발견되거나 각 단계의 스크립트가 실패하면 실행을 중단합니다.
 
 > **Note:** Stage 0 자동화는 현재 개발 및 검증 중입니다. 기존 구축 환경에서 실행할 경우 설치된 패키지나 설정에 영향을 줄 수 있으므로 테스트 환경에서 검증 후 사용하는 것을 권장합니다.
-
 ---
 
 ## Design Principles
