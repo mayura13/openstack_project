@@ -16,8 +16,6 @@ FAIL=0
 
 print_header "OpenInfra Lab Kit - Stage 0 Preflight"
 
-PASS=0
-FAIL=0
 
 check_pass() {
     print_pass "$1"
@@ -75,19 +73,7 @@ else
     check_fail "Memory: ${MEM_GB} GiB (required >= 112 GiB)"
 fi
 
-# 결과
-echo
-echo "========================================"
-echo " Preflight Result"
-echo " PASS: $PASS"
-echo " FAIL: $FAIL"
-echo "========================================"
 
-if [ "$FAIL" -gt 0 ]; then
-    exit 1
-fi
-
-exit 0
 
 # 7. 디스크 여유 공간 확인
 DISK_GB=$(df --output=avail -BG / | tail -1 | tr -dc '0-9')
@@ -126,3 +112,22 @@ else
 
     print_info "Check with: chronyc sources"
 fi
+
+# ----------------------------------------
+# Result
+# ----------------------------------------
+
+echo
+echo "========================================"
+echo " Preflight Result"
+echo " PASS: $PASS"
+echo " FAIL: $FAIL"
+echo "========================================"
+
+if [ "$FAIL" -gt 0 ]; then
+    echo "[X] Stage 0 preflight FAILED"
+    exit 1
+fi
+
+echo "[O] Stage 0 preflight PASSED"
+exit 0
