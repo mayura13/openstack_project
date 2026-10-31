@@ -1,0 +1,32 @@
+# Runtime logs
+logs/*
+!logs/.gitkeep
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Secrets / SSH keys
+*.pem
+*.key
+id_rsa
+id_rsa.pub
+id_ed25519
+id_ed25519.pub
+id_vm_ed25519
+id_vm_ed25519.pub
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.vscode/
