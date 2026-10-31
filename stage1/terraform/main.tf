@@ -140,6 +140,11 @@ resource "libvirt_cloudinit_disk" "cloudinit" {
 
   name = "${each.key}-cloudinit.iso"
 
+  meta_data = <<-EOF
+    instance-id: ${each.key}
+    local-hostname: ${each.key}
+  EOF
+
   user_data = <<-EOF
     #cloud-config
     hostname: ${each.key}
@@ -204,31 +209,68 @@ resource "libvirt_domain" "node" {
 
   autostart = true
 
-  disk = [
-    {
-      volume_id = libvirt_volume.node_disk[each.key].id
-    }
-  ]
+  devices = {
+    disks = [
+      {
+        device = "disk"
 
-  cdrom = [
-    {
-      volume_id = libvirt_volume.cloudinit[each.key].id
-    }
-  ]
+        source = {
+          volume = {
+            pool   = libvirt_pool.openinfra.name
+            volume = libvirt_volume.node_disk[each.key].name
+          }
+        }
 
-  interfaces = [
-    {
-      network_id     = libvirt_network.openinfra.id
-      mac            = each.value.mac
-      wait_for_lease = true
-    }
-  ]
+        target = {
+          dev = "vda"
+          bus = "virtio"
+        }
 
-  console = [
-    {
-      type        = "pty"
-      target_type = "serial"
-      target_port = "0"
-    }
-  ]
+        driver = {
+          name = "qemu"
+          type = "qcow2"
+        }
+      },
+      {
+        device = "cdrom"
+
+        source = {
+          volume = {
+            pool   = libvirt_pool.openinfra.name
+            volume = libvirt_volume.cloudinit[each.key].name
+          }
+        }
+
+        target = {
+          dev = "sda"
+          bus = "sata"
+        }
+
+        read_only = true
+      }
+    ]
+
+    interfaces = [
+      {
+        source = {
+          network = {
+            network = libvirt_network.openinfra.name
+          }
+        }
+
+        mac = {
+          address = each.value.mac
+        }
+
+        model = {
+          type = "virtio"
+        }
+
+        wait_for_ip = {
+          source  = "lease"
+          timeout = 300
+        }
+      }
+    ]
+  }
 }
