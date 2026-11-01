@@ -1,1 +1,3 @@
-null
+images:
+  tags:
+    dep_check: quay.io/airshipit/kubernetes-entrypoint@sha256:19bdc6d63231357121f8dc045fd874b28563d9c8f1139bd6f744078934f8bef7
