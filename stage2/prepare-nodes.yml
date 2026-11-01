@@ -44,10 +44,10 @@
         path: "{{ item }}"
         marker: "# {mark} OPENINFRA NODES"
         block: |
-          192.168.100.10 cp
-          192.168.100.11 ctrl-worker
-          192.168.100.21 compute-1
-          192.168.100.22 compute-2
+          {{ hostvars['cp']['ansible_host'] }} cp
+          {{ hostvars['ctrl-worker']['ansible_host'] }} ctrl-worker
+          {{ hostvars['compute-1']['ansible_host'] }} compute-1
+          {{ hostvars['compute-2']['ansible_host'] }} compute-2
       loop:
         - /etc/hosts
         - /etc/cloud/templates/hosts.debian.tmpl
