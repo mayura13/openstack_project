@@ -1,0 +1,4 @@
+images:
+  tags:
+    openvswitch_db_server: quay.io/airshipit/openvswitch@sha256:b14d12d1e2517ef02c76ae349cd6b00c69286fc4066ca9b0edd50a7eff213ab7
+    openvswitch_vswitchd: quay.io/airshipit/openvswitch@sha256:b14d12d1e2517ef02c76ae349cd6b00c69286fc4066ca9b0edd50a7eff213ab7

@@ -1,0 +1,17 @@
+controller:
+  admissionWebhooks:
+    enabled: false
+  ingressClass: ingress-openstack
+  ingressClassResource:
+    controllerValue: k8s.io/ingress-nginx
+    default: false
+    name: ingress-openstack
+  kind: Deployment
+  labels:
+    app: ingress-api
+  nodeSelector:
+    openstack-control-plane: enabled
+  scope:
+    enabled: true
+  service:
+    enabled: false

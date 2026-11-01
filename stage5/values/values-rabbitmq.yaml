@@ -1,0 +1,7 @@
+images:
+  tags:
+    prometheus_rabbitmq_exporter_helm_tests: quay.io/airshipit/openstack-client:2026.1-ubuntu_noble
+    rabbitmq_init: quay.io/airshipit/openstack-client:2026.1-ubuntu_noble
+pod:
+  replicas:
+    server: 1
