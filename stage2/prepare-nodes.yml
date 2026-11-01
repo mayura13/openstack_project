@@ -52,9 +52,27 @@
         - /etc/hosts
         - /etc/cloud/templates/hosts.debian.tmpl
 
+    - name: DHCP search domain 비활성화
+      ansible.builtin.copy:
+        dest: /etc/systemd/network/99-openinfra-no-dhcp-domains.network
+        content: |
+          [Match]
+          Name=enp1s0
+
+          [DHCPv4]
+          UseDomains=false
+        mode: "0644"
+      notify: Restart systemd-networkd
+
     - name: 기본 패키지 설치
       ansible.builtin.apt:
         name: [curl, ca-certificates, gnupg, conntrack, socat, ipset, ebtables, ethtool]
         state: present
         update_cache: true
         cache_valid_time: 3600
+
+  handlers:
+    - name: Restart systemd-networkd
+      ansible.builtin.systemd:
+        name: systemd-networkd
+        state: restarted
