@@ -166,6 +166,23 @@ terraform \
 print_pass "Terraform apply completed"
 
 # --------------------------------------------------
+# 9. Generate Ansible inventories
+# --------------------------------------------------
+
+print_info "Generating Stage 2 and Stage 3 inventories"
+
+bash "${PROJECT_ROOT}/common/generate-inventory.sh" || {
+    print_error_detail \
+        "Stage 1" \
+        "Inventory generation" \
+        "Failed to generate inventories from Terraform output" \
+        "Check Terraform node_ips output"
+    exit 1
+}
+
+print_pass "Stage 2 and Stage 3 inventories generated"
+
+# --------------------------------------------------
 # Complete
 # --------------------------------------------------
 

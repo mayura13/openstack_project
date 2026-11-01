@@ -274,3 +274,14 @@ resource "libvirt_domain" "node" {
     ]
   }
 }
+# --------------------------------------------------
+# Outputs
+# --------------------------------------------------
+
+output "node_ips" {
+  description = "Static IP addresses assigned to OpenInfra Lab nodes"
+
+  value = {
+    for name, node in local.nodes : name => node.ip
+  }
+}
