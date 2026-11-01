@@ -2,6 +2,7 @@ images:
   tags:
     prometheus_rabbitmq_exporter_helm_tests: quay.io/airshipit/openstack-client:2026.1-ubuntu_noble
     rabbitmq_init: quay.io/airshipit/openstack-client:2026.1-ubuntu_noble
+    dep_check: quay.io/airshipit/kubernetes-entrypoint@sha256:19bdc6d63231357121f8dc045fd874b28563d9c8f1139bd6f744078934f8bef7
 pod:
   replicas:
     server: 1
