@@ -1,0 +1,7 @@
+---
+# OpenInfra Lab Kit - Kubernetes configuration
+# Applied on top of Kubespray v2.31.0 defaults.
+
+kube_version: 1.35.4
+kube_network_plugin: calico
+container_manager: containerd

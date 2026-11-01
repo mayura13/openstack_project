@@ -1,0 +1,60 @@
+---
+- name: Kubernetes 노드 사전 설정
+  hosts: all
+  become: true
+  tasks:
+    - name: swap 즉시 끄기
+      ansible.builtin.command: swapoff -a
+      changed_when: false
+
+    - name: fstab의 swap 항목 주석 처리 (재부팅 후에도 꺼진 상태 유지)
+      ansible.builtin.replace:
+        path: /etc/fstab
+        regexp: '^([^#\n].*\sswap\s.*)$'
+        replace: '# \1'
+
+    - name: 부팅 시 올릴 커널 모듈 목록
+      ansible.builtin.copy:
+        dest: /etc/modules-load.d/k8s.conf
+        content: |
+          overlay
+          br_netfilter
+        mode: "0644"
+
+    - name: 커널 모듈 즉시 로드
+      ansible.builtin.command: "modprobe {{ item }}"
+      loop: [overlay, br_netfilter]
+      changed_when: false
+
+    - name: 네트워크 커널 설정
+      ansible.builtin.copy:
+        dest: /etc/sysctl.d/99-k8s.conf
+        content: |
+          net.ipv4.ip_forward = 1
+          net.bridge.bridge-nf-call-iptables = 1
+          net.bridge.bridge-nf-call-ip6tables = 1
+        mode: "0644"
+
+    - name: 커널 설정 즉시 적용
+      ansible.builtin.command: sysctl --system
+      changed_when: false
+
+    - name: 노드 이름을 /etc/hosts와 cloud-init 템플릿에 등록
+      ansible.builtin.blockinfile:
+        path: "{{ item }}"
+        marker: "# {mark} OPENINFRA NODES"
+        block: |
+          192.168.100.10 cp
+          192.168.100.11 ctrl-worker
+          192.168.100.21 compute-1
+          192.168.100.22 compute-2
+      loop:
+        - /etc/hosts
+        - /etc/cloud/templates/hosts.debian.tmpl
+
+    - name: 기본 패키지 설치
+      ansible.builtin.apt:
+        name: [curl, ca-certificates, gnupg, conntrack, socat, ipset, ebtables, ethtool]
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
