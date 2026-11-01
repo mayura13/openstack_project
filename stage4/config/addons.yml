@@ -1,0 +1,6 @@
+---
+# OpenInfra Lab Kit - Stage 4 storage configuration
+# Applied on top of Kubespray v2.31.0 defaults.
+
+local_path_provisioner_enabled: true
+local_path_provisioner_storage_class: "general"

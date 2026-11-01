@@ -94,6 +94,13 @@ run_check \
     "Time synchronization is active" \
     'test "$(timedatectl show -p NTPSynchronized --value)" = "yes"'
 
+# 10. DHCP search domain 비활성화
+run_check \
+    "DHCP search domain is disabled" \
+    'test -f /etc/systemd/network/99-openinfra-no-dhcp-domains.network &&
+     grep -q "^Name=enp1s0$" /etc/systemd/network/99-openinfra-no-dhcp-domains.network &&
+     grep -q "^UseDomains=false$" /etc/systemd/network/99-openinfra-no-dhcp-domains.network'
+
 echo
 echo "========================================"
 echo " Result: ${PASS} PASS / ${FAIL} FAIL"
