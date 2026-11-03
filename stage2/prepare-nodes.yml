@@ -85,26 +85,29 @@
         - /etc/hosts
         - /etc/cloud/templates/hosts.debian.tmpl
 
-    # [8] DHCP가 알려 주는 "검색 도메인"(search domain)을 사용하지 않도록 설정
-    # 시스템 네트워크 서비스(systemd-networkd) 설정 파일을 만들어 enp1s0 인터페이스에서 UseDomains=false 로 둡니다.
-    # (DNS 이름 해석이 불필요한 도메인 때문에 꼬이는 것을 막으려는 설정입니다)
-    # notify : 이 작업이 파일을 실제로 바꿨을 때만 아래 handlers 의 "Restart systemd-networkd" 를 실행합니다.
-    - name: DHCP search domain 비활성화
+    # [8] DHCP가 알려 주는 검색 도메인(search domain)을 사용하지 않도록 설정
+    # Netplan override를 사용하여 DHCPv4/DHCPv6의 use-domains를 false로 설정합니다.
+    # notify : 설정 파일이 변경되었을 때만 아래 Apply Netplan 핸들러를 실행합니다.
+    - name: DHCP 검색 도메인 비활성화 (Netplan override)
       ansible.builtin.copy:
-        dest: /etc/systemd/network/99-openinfra-no-dhcp-domains.network
+        dest: /etc/netplan/90-openinfra-dns.yaml
         content: |
-          [Match]
-          Name=enp1s0
-
-          [DHCPv4]
-          UseDomains=false
-        mode: "0644"
-      notify: Restart systemd-networkd
+          network:
+            version: 2
+            ethernets:
+              enp1s0:
+                dhcp4-overrides:
+                  use-domains: false
+                dhcp6-overrides:
+                  use-domains: false
+        owner: root
+        group: root
+        mode: "0600"
+      notify: Apply Netplan
 
     # [9] Kubernetes 설치에 필요한 기본 패키지 설치
-    #   curl, ca-certificates, gnupg : 파일 다운로드와 보안 연결(인증서)용
-    #   conntrack, socat, ipset, ebtables, ethtool : Kubernetes 네트워킹 구성요소가 사용하는 도구
-    # state: present : 없으면 설치, 있으면 그대로 둠 / cache_valid_time: 3600 : 1시간 안에 목록을 갱신했으면 apt update 생략
+    # curl, ca-certificates, gnupg : 파일 다운로드와 보안 연결용
+    # conntrack, socat, ipset, ebtables, ethtool : Kubernetes 네트워킹 구성요소가 사용하는 도구
     - name: 기본 패키지 설치
       ansible.builtin.apt:
         name: [curl, ca-certificates, gnupg, conntrack, socat, ipset, ebtables, ethtool]
@@ -112,9 +115,7 @@
         update_cache: true
         cache_valid_time: 3600
 
-  # 핸들러: 위 [8] 작업이 파일을 바꿨을 때만 실행되어 네트워크 서비스를 재시작합니다. (바뀐 설정을 적용)
+  # 핸들러: 위 [8] 작업이 파일을 변경했을 때 Netplan 설정을 적용합니다.
   handlers:
-    - name: Restart systemd-networkd
-      ansible.builtin.systemd:
-        name: systemd-networkd
-        state: restarted
+    - name: Apply Netplan
+      ansible.builtin.command: netplan apply

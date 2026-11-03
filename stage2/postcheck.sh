@@ -121,9 +121,11 @@ run_check \
 # 그 안에 Name=enp1s0 과 UseDomains=false 가 들어 있는지 확인합니다.
 run_check \
     "DHCP search domain is disabled" \
-    'test -f /etc/systemd/network/99-openinfra-no-dhcp-domains.network &&
-     grep -q "^Name=enp1s0$" /etc/systemd/network/99-openinfra-no-dhcp-domains.network &&
-     grep -q "^UseDomains=false$" /etc/systemd/network/99-openinfra-no-dhcp-domains.network'
+    'test -f /etc/netplan/90-openinfra-dns.yaml &&
+     grep -Eq "^[[:space:]]*dhcp4-overrides:" /etc/netplan/90-openinfra-dns.yaml &&
+     grep -Eq "^[[:space:]]*dhcp6-overrides:" /etc/netplan/90-openinfra-dns.yaml &&
+     test "$(grep -Ec "^[[:space:]]*use-domains:[[:space:]]*false[[:space:]]*$" /etc/netplan/90-openinfra-dns.yaml)" -eq 2 &&
+     ! resolvectl domain enp1s0 | grep -q "lab.local"'
 
 echo
 echo "========================================"
