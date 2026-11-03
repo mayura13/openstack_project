@@ -202,10 +202,11 @@ resource "libvirt_volume" "cloudinit" {
 resource "libvirt_domain" "node" {
   for_each = local.nodes
 
-  name   = each.key
-  type   = "kvm"
-  memory = each.value.memory
-  vcpu   = each.value.vcpu
+  name        = each.key
+  type        = "kvm"
+  memory      = each.value.memory
+  memory_unit = "MiB"
+  vcpu        = each.value.vcpu
 
   autostart = true
 

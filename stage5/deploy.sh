@@ -78,6 +78,17 @@ deploy_osh_chart \
 # 4. ingress-nginx
 echo
 echo "========================================"
+echo " Preparing ingress-nginx Helm repository"
+echo "========================================"
+
+helm repo add ingress-nginx \
+    https://kubernetes.github.io/ingress-nginx \
+    --force-update
+
+helm repo update ingress-nginx
+
+echo
+echo "========================================"
 echo " Deploying ingress-nginx"
 echo " Version: ${INGRESS_CHART_VERSION}"
 echo "========================================"
