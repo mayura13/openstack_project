@@ -2,6 +2,11 @@
 # OpenInfra Lab Kit - Kubernetes configuration
 # Applied on top of Kubespray v2.31.0 defaults.
 
+# 이 파일은 stage3/prepare.sh 가 Kubespray의 group_vars/k8s_cluster/k8s-cluster.yml 자리에 통째로 복사합니다.
+# 여기 적지 않은 설정은 Kubespray의 기본값으로 동작합니다.
+# kube_version : 설치할 Kubernetes 버전 (정확히 1.35.4). stage3 점검 스크립트들도 이 값을 기대합니다.
 kube_version: 1.35.4
+# kube_network_plugin : Pod끼리 통신하게 해 주는 네트워크 플러그인(CNI). calico 는 Kubespray 기본값입니다.
 kube_network_plugin: calico
+# container_manager : 컨테이너를 실행하는 런타임. containerd 를 사용합니다.
 container_manager: containerd
