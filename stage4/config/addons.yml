@@ -2,5 +2,9 @@
 # OpenInfra Lab Kit - Stage 4 storage configuration
 # Applied on top of Kubespray v2.31.0 defaults.
 
+# Kubespray의 local-path provisioner 기능을 켭니다. (노드의 로컬 디스크를 PV(볼륨)로 제공)
+# ※ 현재 stage4/configure-storage.sh 는 이 파일을 복사하지 않고, 같은 값을 sed 명령으로 직접 넣습니다.
+#   (이 파일은 존재 여부 확인과 참고용입니다. 값을 바꾸려면 configure-storage.sh 도 함께 확인하세요)
 local_path_provisioner_enabled: true
+# 스토리지클래스(PVC가 볼륨을 받는 방식) 이름. 5단계 values 파일들이 "general" 이라는 이름으로 참조합니다.
 local_path_provisioner_storage_class: "general"
