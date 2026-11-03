@@ -1,7 +1,7 @@
 .PHONY: help \
         preflight install postcheck \
         stage-0 stage-1 stage-2 stage-3 stage-4 stage-5 \
-        deploy
+        deploy reset-dry-run reset
 
 help:
 	@echo "OpenInfra Lab Kit"
@@ -16,7 +16,9 @@ help:
 	@echo "  make stage-3    - Deploy Kubernetes with Kubespray"
 	@echo "  make stage-4    - Prepare OpenStack-Helm prerequisites"
 	@echo "  make stage-5    - Deploy OpenStack with OpenStack-Helm"
-	@echo "  make deploy     - Run complete Stage 0-5 deployment"
+	@echo "  make deploy         - Run complete Stage 0-5 deployment"
+	@echo "  make reset-dry-run  - Show resources targeted for clean-state reset"
+	@echo "  make reset          - Reset OpenInfra Lab Kit resources"
 
 preflight:
 	bash stage0/preflight.sh
@@ -64,3 +66,9 @@ deploy: stage-0 stage-1 stage-2 stage-3 stage-4 stage-5
 	@echo "========================================"
 	@echo " OpenInfra Lab Kit deployment complete"
 	@echo "========================================"
+
+reset-dry-run:
+	bash scripts/reset-lab.sh --dry-run
+
+reset:
+	bash scripts/reset-lab.sh --execute
