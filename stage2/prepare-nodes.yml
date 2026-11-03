@@ -52,18 +52,22 @@
         - /etc/hosts
         - /etc/cloud/templates/hosts.debian.tmpl
 
-    - name: DHCP search domain 비활성화
+    - name: DHCP 검색 도메인 비활성화 (Netplan override)
       ansible.builtin.copy:
-        dest: /etc/systemd/network/99-openinfra-no-dhcp-domains.network
+        dest: /etc/netplan/90-openinfra-dns.yaml
         content: |
-          [Match]
-          Name=enp1s0
-
-          [DHCPv4]
-          UseDomains=false
-        mode: "0644"
-      notify: Restart systemd-networkd
-
+          network:
+            version: 2
+            ethernets:
+              enp1s0:
+                dhcp4-overrides:
+                  use-domains: false
+                dhcp6-overrides:
+                  use-domains: false
+        owner: root
+        group: root
+        mode: "0600"
+      notify: Apply Netplan
     - name: 기본 패키지 설치
       ansible.builtin.apt:
         name: [curl, ca-certificates, gnupg, conntrack, socat, ipset, ebtables, ethtool]
@@ -72,7 +76,5 @@
         cache_valid_time: 3600
 
   handlers:
-    - name: Restart systemd-networkd
-      ansible.builtin.systemd:
-        name: systemd-networkd
-        state: restarted
+    - name: Apply Netplan
+      ansible.builtin.command: netplan apply
