@@ -31,6 +31,7 @@ EXPECTED_RELEASES=(
     placement
     nova
     neutron
+    horizon
 )
 
 RELEASE_FAIL=0
@@ -48,7 +49,7 @@ for release in "${EXPECTED_RELEASES[@]}"; do
 done
 
 if [ "$RELEASE_FAIL" -eq 0 ]; then
-    pass "all 11 Helm releases deployed"
+    pass "all 12 Helm releases deployed"
 else
     fail "one or more Helm releases are not deployed"
 fi
@@ -138,6 +139,25 @@ if [ "$QEMU_COUNT" -eq 2 ] && [ "$QEMU_FAIL" -eq 0 ]; then
     pass "both nova-compute pods use virt_type=qemu"
 else
     fail "nova-compute virt_type=qemu not confirmed on both compute nodes"
+fi
+
+# 7. Horizon pod
+if kubectl get pods -n openstack     -l application=horizon,component=server     --no-headers 2>/dev/null |
+    awk '$2=="1/1" && $3=="Running"{ok=1} END{exit !ok}'
+then
+    pass "Horizon pod Running"
+else
+    fail "Horizon pod not Running"
+fi
+
+# 8. Horizon internal service
+if kubectl get svc horizon-int -n openstack     -o jsonpath='{.spec.ports[*].port}' 2>/dev/null |
+    tr ' ' '\n' |
+    grep -qx '80'
+then
+    pass "Horizon internal service exposes port 80"
+else
+    fail "Horizon internal service port 80 not confirmed"
 fi
 
 echo

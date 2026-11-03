@@ -3,6 +3,10 @@ conf:
     DEFAULT:
       l3_ha: false
       max_l3_agents_per_router: 1
+  plugins:
+    openvswitch_agent:
+      agent:
+        vxlan_udp_port: 4790
 images:
   tags:
     bootstrap: quay.io/airshipit/openstack-client:2026.1-ubuntu_noble

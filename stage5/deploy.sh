@@ -140,6 +140,11 @@ deploy_osh_chart \
     "${SCRIPT_DIR}/values/values-neutron.yaml" \
     900s
 
+# 12. Horizon
+deploy_osh_chart \
+    horizon horizon "${CHART_HORIZON}" \
+    "${SCRIPT_DIR}/values/values-horizon.yaml"
+
 echo
 echo "========================================"
 echo " Stage 5 deployment commands completed"
