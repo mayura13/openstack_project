@@ -73,7 +73,11 @@ else
         exit 1
     }
 
-    print_info "Group membership changed. Re-login may be required."
+    echo
+    print_info "User was added to the libvirt and kvm groups."
+    print_info "The current login session does not have the new group membership yet."
+    print_info "Log out and log back in, then run make deploy again."
+    exit 2
 fi
 
 
