@@ -8,6 +8,7 @@
 #   Neutron  : 테스트 네트워크 생성/조회/삭제, 네트워크 에이전트가 모두 정상(alive)인지
 #   Nova     : nova-compute 서비스 2개와 하이퍼바이저 2개가 up/enabled 인지
 #   Placement: 자원 제공자(resource provider) 2개 확인
+#   Horizon  : Pod Running, 내부 서비스(80), Helm 릴리스 deployed 확인
 # 실행: bash stage6/verify-services.sh [결과 저장 폴더]   (생략하면 logs/verify)
 #       Makefile에는 연결되어 있지 않으므로 직접 실행합니다. (stage5 postcheck 통과 후 실행)
 # 실패하면: [FAIL] 메시지가 어느 서비스의 어느 항목인지 알려 줍니다. 즉시 종료하며, 종료 전에 테스트 리소스를 자동 정리합니다.
@@ -483,6 +484,27 @@ printf '%s\n' "$PLACEMENT_RESULT" \
     > "$VERIFY_DIR/placement-resource-providers.txt"
 
 echo "[PASS] Placement resource providers: 2"
+
+echo
+echo "===== Horizon Verification ====="
+
+# [Horizon 검증] 설치 확인용 읽기 전용 점검입니다. db-init/db-sync 같은 Completed Job은 제외하고 서버 Pod만 봅니다.
+kubectl get pods -n openstack -l application=horizon --no-headers 2>/dev/null \
+    | awk '$1 !~ /-db-/ && $2=="1/1" && $3=="Running"{ok=1} END{exit !ok}' \
+    || fail "Horizon pod not Running"
+
+echo "[PASS] Horizon pod Running"
+
+kubectl get svc horizon-int -n openstack -o jsonpath='{.spec.ports[*].port}' 2>/dev/null \
+    | tr ' ' '\n' | grep -x '80' >/dev/null \
+    || fail "Horizon internal service port 80 not confirmed"
+
+echo "[PASS] Horizon internal service exposes port 80"
+
+helm list -n openstack --deployed -q 2>/dev/null | grep -x 'horizon' >/dev/null \
+    || fail "Horizon Helm release not deployed"
+
+echo "[PASS] Horizon Helm release deployed"
 
 echo
 echo "========================================"
