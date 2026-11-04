@@ -208,6 +208,23 @@ resource "libvirt_domain" "node" {
   memory_unit = "MiB"
   vcpu        = each.value.vcpu
 
+  # Expose host CPU features to the guest.
+  # Required for x86-64-v2 compatibility (Calico).
+  cpu = {
+    mode  = "host-passthrough"
+    check = "none"
+  }
+
+  os = {
+    type         = "hvm"
+    type_arch    = "x86_64"
+    type_machine = "q35"
+    boot_devices = [
+      { dev = "hd" },
+      { dev = "cdrom" }
+    ]
+  }
+
   autostart = true
 
   devices = {

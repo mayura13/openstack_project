@@ -1,6 +1,6 @@
 .PHONY: help \
         preflight install postcheck \
-        stage-0 stage-1 stage-2 stage-3 stage-4 stage-5 \
+        stage-0 stage-1 stage-2 stage-3 stage-4 stage-5 stage-6 \
         deploy reset-dry-run reset
 
 help:
@@ -59,9 +59,13 @@ stage-4:
 stage-5:
 	bash stage5/preflight.sh
 	bash stage5/deploy.sh
-	bash stage5/postcheck.sh
+	bash stage5/wait-ready.sh
 
-deploy: stage-0 stage-1 stage-2 stage-3 stage-4 stage-5
+stage-6:
+	bash stage6/verify-services.sh logs/evaluation/verify
+	bash stage6/collect-state.sh logs/evaluation/final-state
+
+deploy: stage-0 stage-1 stage-2 stage-3 stage-4 stage-5 stage-6
 	@echo ""
 	@echo "========================================"
 	@echo " OpenInfra Lab Kit deployment complete"

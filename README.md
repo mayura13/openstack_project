@@ -512,7 +512,7 @@ exit_code
 
 # State Collection
 
-반복 구축 결과의 일관성을 비교하기 위해 `evaluation/collect-state.sh`를 구현했습니다.
+반복 구축 결과의 일관성을 비교하기 위해 `stage6/collect-state.sh`를 구현했습니다.
 
 수집 항목:
 
@@ -529,7 +529,7 @@ exit_code
 실행 예시:
 
 ```bash
-./evaluation/collect-state.sh logs/run-01/final-state
+./stage6/collect-state.sh logs/run-01/final-state
 ```
 
 결과 예시:
@@ -667,7 +667,7 @@ openstack_project/
 │   ├── postcheck.sh
 │   └── values/
 │
-├── evaluation/
+├── stage6/
 │   └── collect-state.sh
 │
 └── logs/

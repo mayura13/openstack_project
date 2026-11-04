@@ -149,7 +149,7 @@ fi
 echo
 echo "[INFO] Libvirt storage pool openinfra"
 
-POOL_STATE="$(virsh pool-info openinfra 2>/dev/null | awk '/^State:/ {print $2}' || true)"
+POOL_STATE="$(virsh pool-info openinfra-lab 2>/dev/null | awk '/^State:/ {print $2}' || true)"
 
 if [[ "$POOL_STATE" == "running" ]]; then
     pass "Libvirt storage pool openinfra is active"
