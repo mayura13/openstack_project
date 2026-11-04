@@ -27,7 +27,7 @@ sudo apt-get update || {
 
 print_info "Installing base packages..."
 
-sudo apt-get install -y \
+sudo DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get install -y \
     qemu-kvm \
     libvirt-daemon-system \
     libvirt-clients \
@@ -50,6 +50,12 @@ sudo apt-get install -y \
     }
 
 print_pass "Base packages installed"
+
+# Start libvirt before Stage 0 postcheck.
+sudo systemctl enable --now libvirtd || {
+    echo "[FAIL] Could not enable/start libvirtd"
+    exit 1
+}
 
 
 # ----------------------------------------
@@ -391,6 +397,12 @@ if [ "${KUBESPRAY_PYTHON_NEEDS_INSTALL}" = true ]; then
             "Kubespray Python environment" \
             "Failed to install Kubespray Python requirements" \
             "N/A"
+        exit 1
+    }
+
+    "${KUBESPRAY_VENV}/bin/pip" install \
+        "ansible-core==${ANSIBLE_CORE_VERSION}" || {
+        echo "[FAIL] Failed to pin ansible-core ${ANSIBLE_CORE_VERSION}"
         exit 1
     }
 

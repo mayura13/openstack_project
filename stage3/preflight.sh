@@ -16,6 +16,7 @@ set -u
 #   INVENTORY     : Kubespray가 사용할 노드 목록   K8S_CONFIG : Kubernetes 설정 파일
 #   ANSIBLE       : 가상환경의 ansible 명령
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/../versions.env"
 KUBESPRAY_DIR="${HOME}/kubespray"
 INVENTORY="${KUBESPRAY_DIR}/inventory/openinfra/inventory.ini"
 K8S_CONFIG="${KUBESPRAY_DIR}/inventory/openinfra/group_vars/k8s_cluster/k8s-cluster.yml"
@@ -23,8 +24,8 @@ ANSIBLE="${HOME}/venv-kubespray/bin/ansible"
 
 # EXPECTED_* : 이 단계에서 기대하는 버전. versions.env 의 KUBESPRAY_VERSION / Kubernetes 1.35.4 와 같은 값을
 # 이곳에 직접 적어 둔 것입니다. 버전을 바꿀 때는 함께 바꿔야 합니다.
-EXPECTED_KUBESPRAY_VERSION="v2.31.0"
-EXPECTED_KUBE_VERSION="1.35.4"
+EXPECTED_KUBESPRAY_VERSION="${KUBESPRAY_VERSION}"
+EXPECTED_KUBE_VERSION="${KUBERNETES_FULL_VERSION}"
 
 PASS=0
 FAIL=0
