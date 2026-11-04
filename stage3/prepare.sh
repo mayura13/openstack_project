@@ -14,6 +14,7 @@ set -euo pipefail
 
 # SCRIPT_DIR : 이 파일이 있는 폴더(stage3)의 절대 경로
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/../versions.env"
 
 # 경로 설정
 #   SOURCE_INVENTORY : Kubespray가 제공하는 예제(sample) 인벤토리
@@ -27,7 +28,7 @@ KIT_INVENTORY="${SCRIPT_DIR}/inventory/inventory.ini"
 KIT_K8S_CONFIG="${SCRIPT_DIR}/inventory/k8s-cluster.yml"
 
 # EXPECTED_KUBESPRAY_VERSION : 기대하는 Kubespray 버전. versions.env 의 KUBESPRAY_VERSION 과 같은 값을 이곳에 직접 적었습니다.
-EXPECTED_KUBESPRAY_VERSION="v2.31.0"
+EXPECTED_KUBESPRAY_VERSION="${KUBESPRAY_VERSION}"
 
 echo "========================================"
 echo " Stage 3 - Prepare Kubespray Inventory"

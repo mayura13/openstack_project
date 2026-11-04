@@ -50,12 +50,12 @@ else
 fi
 
 # 2. Ansible 버전
-# ansible --version 의 첫 줄에 "ansible [core 2.18.19]" 같은 형태로 버전이 나옵니다.
-# ※ 요구 버전 2.18.19 는 versions.env 의 ANSIBLE_CORE_VERSION 과 같은 값을 이곳에 직접 적은 것입니다.
-if [[ -x "$ANSIBLE" ]] && "$ANSIBLE" --version | head -n 1 | grep -q "core 2.18.19"; then
-    pass "Ansible core version is 2.18.19"
+# ansible --version 의 첫 줄에 "ansible [core 2.18.20]" 같은 형태로 버전이 나옵니다.
+# ※ 요구 버전 2.18.20 는 versions.env 의 ANSIBLE_CORE_VERSION 과 같은 값을 이곳에 직접 적은 것입니다.
+if [[ -x "$ANSIBLE" ]] && "$ANSIBLE" --version | head -n 1 | grep -q "core 2.18.20"; then
+    pass "Ansible core version is 2.18.20"
 else
-    fail "Ansible core version is not 2.18.19"
+    fail "Ansible core version is not 2.18.20"
 fi
 
 # 3. Inventory

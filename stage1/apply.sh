@@ -208,6 +208,41 @@ bash "${PROJECT_ROOT}/common/generate-inventory.sh" || {
 print_pass "Stage 2 and Stage 3 inventories generated"
 
 # --------------------------------------------------
+# 9-1. Wait for SSH/Ansible connectivity
+# --------------------------------------------------
+
+print_info "Waiting for all four VMs to become SSH-ready"
+
+ANSIBLE_BIN="${HOME}/venv-kubespray/bin/ansible"
+STAGE2_INVENTORY="${PROJECT_ROOT}/stage2/inventory.ini"
+STAGE2_CONFIG="${PROJECT_ROOT}/stage2/ansible.cfg"
+
+if [[ ! -x "${ANSIBLE_BIN}" ]]; then
+    echo "[FAIL] Ansible executable not found: ${ANSIBLE_BIN}"
+    exit 1
+fi
+
+for attempt in $(seq 1 60); do
+    if ANSIBLE_CONFIG="${STAGE2_CONFIG}" \
+        "${ANSIBLE_BIN}" -i "${STAGE2_INVENTORY}" \
+        all -m ping -o -f 4 \
+        -e ansible_timeout=3 \
+        > /dev/null 2>&1; then
+        print_pass "All four VMs are SSH-ready"
+        break
+    fi
+
+    if [[ "${attempt}" -eq 60 ]]; then
+        echo "[FAIL] VM SSH readiness check failed after 60 attempts"
+        echo "Check VM IPs, SSH keys and Stage 2 Ansible configuration."
+        exit 1
+    fi
+
+    sleep 5
+done
+
+
+# --------------------------------------------------
 # Complete
 # --------------------------------------------------
 
