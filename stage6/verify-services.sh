@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================
-# evaluation/verify-services.sh - [6단계] OpenStack 서비스 동작 검증
+# stage6/verify-services.sh - [6단계] OpenStack 서비스 동작 검증
 # ==============================================================
 # OpenStack이 설치된 뒤 "서비스가 실제로 동작하는지"를 API로 직접 확인합니다. (결과는 [PASS]/[FAIL])
 #   Keystone : API 응답 확인, 인증 토큰 발급
@@ -8,7 +8,7 @@
 #   Neutron  : 테스트 네트워크 생성/조회/삭제, 네트워크 에이전트가 모두 정상(alive)인지
 #   Nova     : nova-compute 서비스 2개와 하이퍼바이저 2개가 up/enabled 인지
 #   Placement: 자원 제공자(resource provider) 2개 확인
-# 실행: bash evaluation/verify-services.sh [결과 저장 폴더]   (생략하면 logs/verify)
+# 실행: bash stage6/verify-services.sh [결과 저장 폴더]   (생략하면 logs/verify)
 #       Makefile에는 연결되어 있지 않으므로 직접 실행합니다. (stage5 postcheck 통과 후 실행)
 # 실패하면: [FAIL] 메시지가 어느 서비스의 어느 항목인지 알려 줍니다. 즉시 종료하며, 종료 전에 테스트 리소스를 자동 정리합니다.
 #

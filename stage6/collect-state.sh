@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # ==============================================================
-# evaluation/collect-state.sh - 배포가 끝난 뒤 "최종 상태"를 파일로 저장
+# stage6/collect-state.sh - 배포가 끝난 뒤 "최종 상태"를 파일로 저장
 # ==============================================================
 # Kubernetes와 OpenStack의 최종 상태를 사람이 비교하기 쉬운 텍스트 파일들로 저장합니다.
 # 여러 번 배포한 결과를 서로 비교(결과가 매번 같은지 확인)할 때 쓸 수 있습니다. 모든 목록은 정렬(sort)해서 저장합니다.
 #
-# 사용법: bash evaluation/collect-state.sh <저장 폴더>      예) bash evaluation/collect-state.sh logs/run-01/final-state
+# 사용법: bash stage6/collect-state.sh <저장 폴더>      예) bash stage6/collect-state.sh logs/run-01/final-state
 #         상대 경로를 주면 프로젝트 맨 위 폴더 기준으로 저장합니다.
 # 이 스크립트는 상태를 읽어서 파일로 저장할 뿐, 클러스터 설정을 바꾸지 않습니다. (OpenStack 로그인 토큰 발급은 합니다)
 # Makefile에는 연결되어 있지 않습니다.

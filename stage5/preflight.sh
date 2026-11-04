@@ -96,10 +96,10 @@ VALUE_COUNT="$(
     wc -l
 )"
 
-if [ "$VALUE_COUNT" -eq 11 ]; then
+if [ "$VALUE_COUNT" -eq 12 ]; then
     check_pass "11 Stage 5 values files found"
 else
-    check_fail "expected 11 values files, found ${VALUE_COUNT}"
+    check_fail "expected 12 values files, found ${VALUE_COUNT}"
 fi
 
 echo

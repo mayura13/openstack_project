@@ -166,6 +166,31 @@ terraform \
 print_pass "Terraform apply completed"
 
 # --------------------------------------------------
+# 8-1. Ensure all lab VMs are running
+# --------------------------------------------------
+
+print_info "Ensuring all lab VMs are running"
+
+for vm in cp ctrl-worker compute-1 compute-2; do
+    state="$(sudo virsh -c qemu:///system domstate "$vm")"
+
+    if [[ "$state" == "running" ]]; then
+        print_pass "$vm already running"
+    elif [[ "$state" == "shut off" ]]; then
+        print_info "Starting $vm"
+        sudo virsh -c qemu:///system start "$vm"
+    else
+        print_error_detail \
+            "Stage 1" \
+            "VM startup" \
+            "$vm is in unexpected state: $state" \
+            "Inspect with: sudo virsh -c qemu:///system dominfo $vm"
+        exit 1
+    fi
+done
+
+print_pass "All lab VMs are running"
+# --------------------------------------------------
 # 9. Generate Ansible inventories
 # --------------------------------------------------
 

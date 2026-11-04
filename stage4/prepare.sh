@@ -25,9 +25,6 @@ OSH_DIR="${HOME}/openstack-helm"
 
 echo "=== Stage 4 Prepare ==="
 
-# 1. Stage 4 preflight
-# preflight 가 실패하면(종료 코드 1) set -e 때문에 여기서 스크립트가 멈춥니다.
-"${STAGE4_DIR}/preflight.sh"
 
 # 2. Configure kubeconfig from control-plane
 echo
@@ -39,16 +36,41 @@ mkdir -p "${HOME}/.kube"
 # cp 노드(192.168.100.10)의 /etc/kubernetes/admin.conf (관리자 접속 정보)를 SSH로 읽어서 ~/.kube/config 로 저장합니다.
 # 그러면 이 서버에서 kubectl 과 helm 을 바로 쓸 수 있습니다.
 #   -o StrictHostKeyChecking=no, UserKnownHostsFile=/dev/null : 서버 지문 확인/기록을 하지 않음 (VM을 자주 다시 만들기 때문)
-ssh \
+# Download kubeconfig to a temporary file first.
+# Preserve the existing config if SSH or download fails.
+TEMP_KUBECONFIG="$(mktemp "${HOME}/.kube/config.tmp.XXXXXX")"
+
+if ! ssh \
     -i "${HOME}/.ssh/id_vm_ed25519" \
     -o StrictHostKeyChecking=no \
     -o UserKnownHostsFile=/dev/null \
+    -o BatchMode=yes \
     kit@192.168.100.10 \
-    'sudo cat /etc/kubernetes/admin.conf' \
-    > "${KUBECONFIG_PATH}"
+    'sudo -n cat /etc/kubernetes/admin.conf' \
+    > "${TEMP_KUBECONFIG}"; then
 
-# chmod 600 : 나만 읽고 쓸 수 있게 합니다. (관리자 권한이 들어 있는 파일이므로)
-chmod 600 "${KUBECONFIG_PATH}"
+    rm -f "${TEMP_KUBECONFIG}"
+    echo "[FAIL] Failed to fetch kubeconfig from control-plane"
+    exit 1
+fi
+
+if [[ ! -s "${TEMP_KUBECONFIG}" ]] ||
+   ! kubectl config view \
+       --kubeconfig="${TEMP_KUBECONFIG}" \
+       -o json >/dev/null 2>&1; then
+
+    rm -f "${TEMP_KUBECONFIG}"
+    echo "[FAIL] Downloaded kubeconfig is empty or invalid"
+    exit 1
+fi
+
+chmod 600 "${TEMP_KUBECONFIG}"
+mv -f "${TEMP_KUBECONFIG}" "${KUBECONFIG_PATH}"
+
+echo "[PASS] kubeconfig synchronized"
+
+# Validate the cluster using the freshly synchronized kubeconfig.
+"${STAGE4_DIR}/preflight.sh"
 
 # 3. Configure OpenStack-Helm repository
 echo "[INFO] Configuring OpenStack-Helm repository..."
