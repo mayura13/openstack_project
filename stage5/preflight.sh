@@ -97,7 +97,7 @@ VALUE_COUNT="$(
 )"
 
 if [ "$VALUE_COUNT" -eq 12 ]; then
-    check_pass "11 Stage 5 values files found"
+    check_pass "12 Stage 5 values files found"
 else
     check_fail "expected 12 values files, found ${VALUE_COUNT}"
 fi
