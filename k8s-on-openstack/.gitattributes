@@ -1,0 +1,7 @@
+# 쉘 스크립트는 항상 LF 로 유지한다(Windows 에서 CRLF 로 바뀌면 서버에서 실행되지 않는다)
+* text=auto eol=lf
+*.sh text eol=lf
+*.py text eol=lf
+*.tpl text eol=lf
+Makefile text eol=lf
+*.zip binary
