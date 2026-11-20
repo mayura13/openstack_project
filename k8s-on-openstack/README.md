@@ -122,13 +122,14 @@ cd <키트 폴더>
 
 make preflight         # 0단계 설치 전 점검만
 make install           # 0단계 도구 설치까지
+make up                # 0~5단계 순서대로(미시험, 아래 설명 참고)
 make stage-N           # N단계 전체(preflight -> apply -> postcheck). N = 0..6
 make stageN-plan       # N단계가 무엇을 바꿀지만 출력(dry-run). N = 1..6
 make verify            # 검증 a~f 전체. 상황에 맞는 것만 실행하고 삭제는 하지 않음
 make stage-6           # 6단계: 클러스터 삭제와 검증 f. 클러스터 이름을 직접 입력해야 진행
 ```
 
-- `make up`(0~5단계 한 번에)은 아직 없습니다. 단계별로 `make stage-N`을 실행합니다.
+- `make up`은 0~5단계를 순서대로 실행합니다. 중간에 실패하면 멈추고, 이미 끝난 단계는 SKIP 하므로 다시 실행해도 됩니다. 0단계가 종료 코드 2(재로그인 필요)로 끝나면 다시 접속한 뒤 `make up`을 재실행하세요. 이미지 빌드(2단계)와 OpenStack 배포(1단계)가 있어 tmux 안에서 실행해야 합니다. **`make up` 전체는 아직 시험하지 않았습니다**(단계별 시험 범위는 구현 현황 표 참고).
 - 검증은 `verify-a`(OpenStack, 테스트 VM은 항상 삭제), `verify-bcde`(클러스터가 있을 때), `verify-f`(삭제 전후 기록이 있을 때)를 개별로도 실행할 수 있고, `make verify`가 이 셋을 묶어 표로 요약합니다. 클러스터를 삭제한 뒤에는 b~e가 SKIP되는 것이 정상이고, 삭제 뒤 다시 만들었다면 f가 SKIP됩니다(삭제 검증은 삭제 직후의 기록과 비교하는 것이라 재생성 뒤에는 의미가 없음).
 - 오래 걸리는 단계(노드 이미지 빌드 약 31분, OpenStack 배포 약 23분)는 **tmux 같은 별도 세션**에서 실행하세요. SSH가 끊겨도 계속 진행됩니다.
 - 확인 질문이 있는 명령의 출력을 `| tail` 같은 파이프로 가리지 않습니다. 승인 질문이 숨어 진행이 멈춘 것처럼 보입니다.
@@ -171,7 +172,7 @@ make stage-6           # 6단계: 클러스터 삭제와 검증 f. 클러스터 
 | 4 | CAPO `CrashLoopBackOff`, webhook `connection refused` | CAPO v0.15.1은 ORC가 필수 | ORC 설치 후 CAPO 재시작 |
 | 4 | `INITIALIZED` 비어 있고 워커 Pending | 호스팅 방화벽이 `FORWARD`에서 6443 등을 REJECT | kind → 외부망 `FORWARD` 허용 규칙 |
 | 5 | OCCM `Error` 반복, `No suitable endpoint ... service catalog` | Octavia(LB) 없음 | `cloud.conf`에 `[LoadBalancer] enabled=false` |
-| 5 | 컨트롤플레인 `calico-node`만 BIRD 시작 실패 | 보안 그룹에 Typha 5473/tcp 없음 | 노드 보안 그룹에 5473/tcp 규칙 추가 |
+| 5 | 컨트롤플레인 `calico-node`만 BIRD 시작 실패 | 보안 그룹에 Typha 5473/tcp 없음. **`openstack`으로 직접 넣은 규칙은 CAPO 가 되돌린다**(관찰: 넣은 지 수 분 뒤 CAPO 의 보안 그룹 재조정 시각과 SG 수정 시각이 같음) | 4단계 주문서의 `managedSecurityGroups.clusterNodesSecurityGroupRules` 에 5473/tcp 규칙을 넣는다(키트가 렌더) |
 
 ## 10. 비밀과 공개 규칙
 
@@ -206,7 +207,7 @@ make stage-6           # 6단계: 클러스터 삭제와 검증 f. 클러스터 
 | 2 | 완료 | 완료 | 작성됨(apply, preflight, postcheck, verify-a). 이미 구축된 서버에서 preflight 15 PASS, dry-run SKIP, postcheck 20 PASS, 검증 a 7 PASS 확인(이미지 빌드·terraform apply 경로는 미시험) |
 | 3 | 완료 | 완료 | 작성됨(apply, preflight, postcheck). 이미 구축된 서버에서 preflight 18 PASS, dry-run 전부 SKIP, postcheck 29 PASS 확인(kind 생성·clusterctl init·NAT 추가 경로는 미시험) |
 | 4 | 완료 | 완료 | 작성됨(apply, preflight, postcheck, 주문서 템플릿). 이미 구축된 서버에서 preflight 20 PASS, dry-run 전부 SKIP, postcheck 18 PASS 확인(ORC 설치·Secret 생성·클러스터 생성 경로는 미시험). 삭제 뒤 같은 주문서로 재생성해 postcheck 18 PASS(노드 등록까지 약 4분, Floating IP 는 새 주소) 확인 |
-| 5 | 완료 | 완료 | 작성됨(`stage5/`: apply, preflight, postcheck, verify-bcde). NotReady 상태의 실제 클러스터에서 apply 를 실행해 Calico·OCCM 설치, postcheck 17 PASS, 검증 b~e 14 PASS 확인. OCCM 을 Calico 보다 먼저 설치하는 순서로 성공함. 매니페스트 sha256 고정(수동 구축 때 받은 파일 기준). 재생성한 클러스터에서 5단계를 다시 실행해 약 3분 30초에 완료, 검증 b~e 14 PASS(새 보안 그룹에는 Typha 규칙이 없어 5단계를 다시 해야 함). 새로 내려받는 경로와 CAPO 가 SG 규칙을 되돌리는지는 미시험 |
+| 5 | 완료 | 완료 | 작성됨(`stage5/`: apply, preflight, postcheck, verify-bcde). NotReady 상태의 실제 클러스터에서 apply 를 실행해 Calico·OCCM 설치, postcheck 17 PASS, 검증 b~e 14 PASS 확인. OCCM 을 Calico 보다 먼저 설치하는 순서로 성공함. 매니페스트 sha256 고정(수동 구축 때 받은 파일 기준). 재생성한 클러스터에서 5단계를 다시 실행해 확인 질문 응답 후 약 2분 30초에 완료, 검증 b~e 14 PASS(새 보안 그룹에는 Typha 규칙이 없어 5단계를 다시 해야 함). 새로 내려받는 경로는 미시험. **이후 `openstack`으로 직접 넣은 Typha 규칙이 CAPO 에 의해 되돌려진 것을 확인**해 규칙을 주문서(CAPO 관리 정의)로 옮겼고, 5단계 postcheck 에 정의 확인 1건을 더함(총 18). 이 수정은 새 클러스터로 시험하지 않았다 |
 | 6 | 완료 | 완료 | 작성됨(`stage6/`: apply(삭제), preflight, verify-f, compare.py). 실제 서버에서 `k8s-lab` 삭제를 실행해 확인: 삭제 명령 35초, 삭제 명령 종료 후 OpenStack 정리 확인까지 6초, 검증 f 17 PASS(CAPO 서버 3·Floating IP 1·보안 그룹 2·포트 4 정리, Terraform 자원 ID 보존). 시험 중 키트 오류 2건 수정(Cinder 없는 환경의 볼륨 조회 실패, Floating IP 자체 포트의 CAPO 자원 식별). 삭제 뒤 같은 주문서로 재생성은 미시험 |
 
 ## 13. 문서

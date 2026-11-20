@@ -121,6 +121,16 @@ spec:
       remoteManagedGroups:
       - controlplane
       - worker
+    - description: Calico Typha (kit) - CAPO 가 관리하는 규칙이라 되돌려지지 않는다
+      direction: ingress
+      etherType: IPv4
+      name: Typha (Calico)
+      portRangeMax: @TYPHA_PORT@
+      portRangeMin: @TYPHA_PORT@
+      protocol: tcp
+      remoteManagedGroups:
+      - controlplane
+      - worker
     - description: Created by cluster-api-provider-openstack - IP-in-IP (calico)
       direction: ingress
       etherType: IPv4

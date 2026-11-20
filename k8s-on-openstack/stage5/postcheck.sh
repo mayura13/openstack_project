@@ -22,6 +22,15 @@ raise SystemExit(0 if any(str(r.get("Port Range") or "") in (port, port+":"+port
 [[ -n "$cp_id" ]] && has_rule "$cp_id" && check_ok "Typha ${TYPHA_PORT}/tcp 규칙(출발지 컨트롤플레인 SG)" || check_ng "Typha ${TYPHA_PORT}/tcp 규칙(출발지 컨트롤플레인 SG)" "있음" "없음" "apply.sh 의 typha_sg 단계. CAPO 가 규칙을 되돌렸는지도 확인"
 [[ -n "$wk_id" ]] && has_rule "$wk_id" && check_ok "Typha ${TYPHA_PORT}/tcp 규칙(출발지 워커 SG)" || check_ng "Typha ${TYPHA_PORT}/tcp 규칙(출발지 워커 SG)" "있음" "없음" "apply.sh 의 typha_sg 단계"
 
+spec_ok="$(env -u KUBECONFIG "$KUBECTL" --context "$KUBE_CONTEXT" -n default get openstackcluster "$CLUSTER_NAME" -o json 2>/dev/null | python3 -c '
+import sys, json
+port = int(sys.argv[1])
+try: o = json.load(sys.stdin)
+except Exception: print("조회실패"); raise SystemExit
+rules = (o.get("spec", {}).get("managedSecurityGroups") or {}).get("clusterNodesSecurityGroupRules") or []
+print("있음" if any(r.get("protocol") == "tcp" and r.get("portRangeMin") == port and r.get("portRangeMax") == port for r in rules) else "없음")' "$TYPHA_PORT")"
+[[ "$spec_ok" == "있음" ]] && check_ok "OpenStackCluster 정의에 Typha ${TYPHA_PORT}/tcp 규칙(CAPO 관리)" || check_ng "OpenStackCluster 정의의 Typha 규칙" "있음" "${spec_ok:-조회실패}" "주문서에 규칙이 없으면 CAPO 가 보안 그룹의 수동 규칙을 되돌린다. 4단계 주문서를 새로 렌더해 클러스터를 다시 만든다"
+
 # ---------------------------------------------------------------- OCCM
 ready="$(wk -n kube-system get ds openstack-cloud-controller-manager -o jsonpath='{.status.numberReady}')"
 desired="$(wk -n kube-system get ds openstack-cloud-controller-manager -o jsonpath='{.status.desiredNumberScheduled}')"

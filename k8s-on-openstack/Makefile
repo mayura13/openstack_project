@@ -18,6 +18,7 @@
 #   make stage6-preflight / stage6-plan / stage6-apply / verify-f
 #   make stage-6        6단계(preflight -> 클러스터 삭제 -> 검증 f). 삭제는 클러스터 이름을 직접 입력해야 진행
 #   make verify         검증 a~f 전체(상황에 맞는 것만 실행, 삭제 안 함)
+#   make up             0~5단계를 순서대로 실행(각 단계의 확인 질문은 그대로 나옴). 끝나면 make verify 권장
 #   make clean-check    회차 시작 전 깨끗한 상태 확인 (읽기 전용)
 #   make install-plan   설치 계획만 출력(dry-run)
 #
@@ -26,10 +27,10 @@
 
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
-.PHONY: help preflight install install-plan postcheck stage-0 clean-check stage1-preflight stage1-plan stage1-apply stage1-postcheck stage-1 stage2-preflight stage2-plan stage2-apply stage2-postcheck verify-a stage-2 stage3-preflight stage3-plan stage3-apply stage3-postcheck stage-3 stage4-preflight stage4-plan stage4-apply stage4-postcheck stage-4 stage5-preflight stage5-plan stage5-apply stage5-postcheck verify-bcde stage-5 stage6-preflight stage6-plan stage6-apply verify-f stage-6 verify
+.PHONY: help preflight install install-plan postcheck stage-0 clean-check stage1-preflight stage1-plan stage1-apply stage1-postcheck stage-1 stage2-preflight stage2-plan stage2-apply stage2-postcheck verify-a stage-2 stage3-preflight stage3-plan stage3-apply stage3-postcheck stage-3 stage4-preflight stage4-plan stage4-apply stage4-postcheck stage-4 stage5-preflight stage5-plan stage5-apply stage5-postcheck verify-bcde stage-5 stage6-preflight stage6-plan stage6-apply verify-f stage-6 verify up
 
 help:
-	@sed -n '2,26p' Makefile | sed 's/^# \{0,1\}//'
+	@sed -n '2,27p' Makefile | sed 's/^# \{0,1\}//'
 
 preflight:
 	@bash stage0/preflight.sh
@@ -189,3 +190,17 @@ stage-6:
 
 verify:
 	@bash verify/all.sh
+
+# 0~5단계를 차례로 실행한다. 어느 단계든 실패하면(종료 코드 0 이 아니면) 거기서 멈춘다.
+# - 0단계가 종료 코드 2(재접속 필요)로 끝나면 실패가 아니라 "다시 로그인한 뒤 make up 재실행" 안내다.
+# - 2단계에는 이미지 빌드(약 31분)가 있어 tmux 안에서 실행해야 한다. 1단계 배포(약 23분)도 tmux 권장.
+# - 이미 끝난 단계는 각 apply 가 SKIP 하므로 중간에 멈췄다가 다시 실행해도 된다.
+up:
+	@echo "===== make up: 0~5단계 순서 실행 ====="
+	@$(MAKE) --no-print-directory stage-0
+	@$(MAKE) --no-print-directory stage-1
+	@$(MAKE) --no-print-directory stage-2
+	@$(MAKE) --no-print-directory stage-3
+	@$(MAKE) --no-print-directory stage-4
+	@$(MAKE) --no-print-directory stage-5
+	@echo "===== make up 완료. 'make verify' 로 검증 a~e 를 실행하세요 ====="

@@ -43,7 +43,7 @@ render_manifest() {
       -e "s|@CP_REPLICAS@|${CP_REPLICAS}|g" -e "s|@AZ@|${NODE_AZ}|g" -e "s|@K8S_SEMVER@|${K8S_SEMVER}|g" \
       -e "s|@EXT_NET_ID@|${ext}|g" -e "s|@CLOUD_NAME@|${KOLLA_CLOUD}|g" -e "s|@SECRET_NAME@|${CLOUD_SECRET_NAME}|g" \
       -e "s|@NET@|${K8S_NET_NAME}|g" -e "s|@SUBNET@|k8s-subnet|g" -e "s|@FLAVOR@|${NODE_FLAVOR}|g" \
-      -e "s|@IMAGE@|${NODE_IMAGE_NAME}|g" -e "s|@KEYPAIR@|${NODE_KEYPAIR}|g" "$HERE/k8s-lab.yaml.tpl"
+      -e "s|@IMAGE@|${NODE_IMAGE_NAME}|g" -e "s|@KEYPAIR@|${NODE_KEYPAIR}|g" -e "s|@TYPHA_PORT@|${TYPHA_PORT}|g" "$HERE/k8s-lab.yaml.tpl"
 }
 
 capo_running() { kc -n capo-system get pods --no-headers 2>/dev/null | awk '{if ($2=="1/1" && $3=="Running") ok=1} END{exit ok?0:1}'; }

@@ -152,8 +152,18 @@ need_typha_sg() {
   if [[ "${#miss[@]}" -gt 0 ]]; then REASON="규칙 없음: ${miss[*]}"; return 0; fi
   REASON="규칙 2개 모두 있음"; return 1
 }
+capo_spec_has_typha() {   # 관리 클러스터의 OpenStackCluster 정의에 Typha 규칙이 있는가(CAPO 가 되돌리지 않는 위치)
+  env -u KUBECONFIG "$KUBECTL" --context "$KUBE_CONTEXT" -n default get openstackcluster "$CLUSTER_NAME" -o json 2>/dev/null | python3 -c '
+import sys, json
+port = int(sys.argv[1])
+try: o = json.load(sys.stdin)
+except Exception: raise SystemExit(1)
+rules = (o.get("spec", {}).get("managedSecurityGroups") or {}).get("clusterNodesSecurityGroupRules") or []
+raise SystemExit(0 if any(r.get("protocol") == "tcp" and r.get("portRangeMin") == port and r.get("portRangeMax") == port for r in rules) else 1)' "$TYPHA_PORT"
+}
 do_typha_sg() {
   local cp wkid
+  capo_spec_has_typha || log_warn "OpenStackCluster 정의에 Typha ${TYPHA_PORT}/tcp 규칙이 없습니다. 지금 넣는 규칙은 CAPO 가 되돌릴 수 있습니다(관찰됨). 4단계 주문서를 새로 렌더(FORCE_OVERWRITE_MANIFEST=1)해 클러스터를 다시 만들어야 영구적입니다."
   cp="$(sg_id "$CP_SG")"; wkid="$(sg_id "$WK_SG")"
   [[ -n "$cp" && -n "$wkid" ]] || die "CAPO 보안 그룹을 찾지 못했습니다. 4단계(클러스터 생성)를 먼저 실행하세요." "$EXIT_FAIL"
   typha_rule_present "$WK_SG" "$cp" || run_step "Typha 규칙(출발지 컨트롤플레인 SG)" os security group rule create "$WK_SG" --ingress --protocol tcp --dst-port "$TYPHA_PORT" --remote-group "$cp" --description "calico typha from controlplane (kit)" -c id -f value
