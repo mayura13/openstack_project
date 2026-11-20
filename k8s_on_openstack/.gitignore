@@ -1,0 +1,28 @@
+# 비밀과 환경 고유 정보는 저장소에 넣지 않는다 (공개 저장소 전제)
+passwords.yml
+admin-openrc.sh
+*-openrc.sh
+clouds.yaml
+*.kubeconfig
+kubeconfig
+cloud.conf
+*.pem
+k8s-node-key
+k8s-node-key.pub.bak
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+*.tfvars
+
+# 로그와 회차 결과 (리소스 ID, IP, 비밀이 섞일 수 있음)
+logs/
+before-openstack.txt
+after-openstack.txt
+
+# 백업과 임시 파일
+*.before-*
+*.bak-*
+backups/
+*.swp
