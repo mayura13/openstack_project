@@ -28,7 +28,9 @@ if [[ -s "$CLUSTER_KUBECONFIG" ]] && timeout 30 "$KUBECTL" --kubeconfig "$CLUSTE
   run_one bcde "b~e: 클러스터, 배포 상태, 서비스, 클라우드 연동" stage5/verify-bcde.sh
 else skip_one bcde "워크로드 클러스터가 없거나 접속할 수 없음(삭제했다면 정상)"; fi
 
-if [[ -s "$STAGE6_DIR/before/taken-at.txt" && -s "$STAGE6_DIR/after/taken-at.txt" ]]; then run_one f "f: 삭제(CAPO 자원 정리, Terraform 자원 보존)" stage6/verify-f.sh
+if mkc -n default get cluster "$CLUSTER_NAME" >/dev/null 2>&1; then
+  skip_one f "클러스터 ${CLUSTER_NAME} 가 다시 만들어져 있음(삭제 검증 기록이 오래된 것. 삭제 직후에만 의미가 있다)"
+elif [[ -s "$STAGE6_DIR/before/taken-at.txt" && -s "$STAGE6_DIR/after/taken-at.txt" ]]; then run_one f "f: 삭제(CAPO 자원 정리, Terraform 자원 보존)" stage6/verify-f.sh
 else skip_one f "삭제 전후 기록이 없음(6단계를 실행하지 않았다면 정상)"; fi
 
 echo

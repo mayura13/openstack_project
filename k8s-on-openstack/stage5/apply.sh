@@ -163,8 +163,8 @@ do_typha_sg() {
 need_occm_secret() {
   if ! wk_up; then REASON="워크로드 클러스터에 접속할 수 없음 — 4단계 필요"; return 0; fi
   [[ -r "$CFG" ]] || { REASON="$CFG 를 읽을 수 없음"; return 0; }
+  if ! wk -n kube-system get secret cloud-config >/dev/null 2>&1; then REASON="Secret 없음"; return 0; fi
   local sh; sh="$(secret_hash)"
-  if [[ -z "$sh" ]]; then REASON="Secret 없음"; return 0; fi
   if [[ "$sh" != "$(conf_hash)" ]]; then REASON="Secret 내용이 clouds.yaml 에서 만든 설정과 다름(해시만 비교)"; return 0; fi
   REASON="Secret 이 있고 내용이 일치"; return 1
 }

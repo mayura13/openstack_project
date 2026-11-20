@@ -11,6 +11,10 @@ if [[ ! -s "$BEFORE/taken-at.txt" || ! -s "$AFTER/taken-at.txt" ]]; then
   check_ng "삭제 전후 기록" "$BEFORE 와 $AFTER" "없음" "make stage6-apply 로 삭제 전후 기록을 만든다"
   report_summary || die "기록이 없습니다." "$EXIT_FAIL"
 fi
+if mkc -n default get cluster "$CLUSTER_NAME" >/dev/null 2>&1; then
+  log_warn "클러스터 ${CLUSTER_NAME} 가 지금 있습니다(삭제 뒤 다시 만든 것으로 보임). 삭제 검증은 삭제 직후의 기록과 비교하는 것이라 지금은 의미가 없어 건너뜁니다."
+  exit "$EXIT_OK"
+fi
 log_info "삭제 전 기록: $(cat "$BEFORE/taken-at.txt"), 삭제 후 기록: $(cat "$AFTER/taken-at.txt")"
 report_compare "$BEFORE" "$AFTER"
 if mkc get nodes >/dev/null 2>&1; then

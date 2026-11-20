@@ -3,7 +3,7 @@
 Bare Metal 서버 한 대에서 **OpenStack을 먼저 구축하고, 그 위의 VM 3대에 Kubernetes를 올리는** 실습 환경을 일곱 단계(0~6)로 구축하고 검증하는 입문자용 자동화 키트입니다.
 
 > **현재 상태: 설계·수동 구축 완료, 자동화 코드 작성 완료(검증 진행 중)**
-> 0~6단계 자동화 코드(`stage0/`~`stage6/`, `common/`, `versions.env`, `Makefile`)가 작성되었습니다. 0~4단계는 구축된 서버에서 읽기 전용 점검(preflight, dry-run, postcheck)으로 확인했습니다. 5단계는 NotReady 클러스터에 실제 apply 를 실행했고, 6단계는 실제 클러스터를 삭제해 검증 f 를 통과했습니다. 깨끗한 서버에서의 설치와 0~4단계의 변경 경로(Docker·OpenStack 배포, 이미지 빌드, kind·ORC 설치, 클러스터 생성), 삭제 뒤 재생성은 아직 시험하지 않았습니다.
+> 0~6단계 자동화 코드(`stage0/`~`stage6/`, `common/`, `versions.env`, `Makefile`)가 작성되었습니다. 0~4단계는 구축된 서버에서 읽기 전용 점검(preflight, dry-run, postcheck)으로 확인했습니다. 5단계는 NotReady 클러스터에 실제 apply 를 실행했고, 6단계는 실제 클러스터를 삭제해 검증 f 를 통과했습니다. 삭제 뒤 같은 주문서로 4·5단계를 다시 실행하는 재생성도 시험했습니다. 깨끗한 서버에서의 설치와 0~3단계의 변경 경로(Docker·OpenStack 배포, 이미지 빌드, kind 생성), 4단계의 ORC 설치·Secret 생성 경로는 아직 시험하지 않았습니다.
 > 0~6단계의 수동 구축을 모두 한 번씩 수행해 절차, 고정 버전, 막힌 지점을 기록했습니다. 이 README는 그 기록을 바탕으로 키트가 **무엇을 어떤 순서로 자동화할지**를 정리한 것이며, 아래 `make` 명령과 디렉터리는 자동화 구현과 함께 채워집니다. 구현된 항목은 [구현 현황](#구현-현황)에서 확인하세요.
 
 ---
@@ -129,7 +129,7 @@ make stage-6           # 6단계: 클러스터 삭제와 검증 f. 클러스터 
 ```
 
 - `make up`(0~5단계 한 번에)은 아직 없습니다. 단계별로 `make stage-N`을 실행합니다.
-- 검증은 `verify-a`(OpenStack, 테스트 VM은 항상 삭제), `verify-bcde`(클러스터가 있을 때), `verify-f`(삭제 전후 기록이 있을 때)를 개별로도 실행할 수 있고, `make verify`가 이 셋을 묶어 표로 요약합니다. 클러스터를 삭제한 뒤에는 b~e가 SKIP되는 것이 정상입니다.
+- 검증은 `verify-a`(OpenStack, 테스트 VM은 항상 삭제), `verify-bcde`(클러스터가 있을 때), `verify-f`(삭제 전후 기록이 있을 때)를 개별로도 실행할 수 있고, `make verify`가 이 셋을 묶어 표로 요약합니다. 클러스터를 삭제한 뒤에는 b~e가 SKIP되는 것이 정상이고, 삭제 뒤 다시 만들었다면 f가 SKIP됩니다(삭제 검증은 삭제 직후의 기록과 비교하는 것이라 재생성 뒤에는 의미가 없음).
 - 오래 걸리는 단계(노드 이미지 빌드 약 31분, OpenStack 배포 약 23분)는 **tmux 같은 별도 세션**에서 실행하세요. SSH가 끊겨도 계속 진행됩니다.
 - 확인 질문이 있는 명령의 출력을 `| tail` 같은 파이프로 가리지 않습니다. 승인 질문이 숨어 진행이 멈춘 것처럼 보입니다.
 - 삭제는 되돌릴 수 없으므로 클러스터 이름을 직접 입력해야 하고(`--yes`로는 건너뛸 수 없음), 삭제 전에 OpenStack 자원 상태를 기록해 삭제 후 이름·ID로 비교합니다.
@@ -191,7 +191,7 @@ make stage-6           # 6단계: 클러스터 삭제와 검증 f. 클러스터 
 - 단일 서버, 단일 노드(all-in-one) OpenStack, 고정 3노드 토폴로지로 한정합니다. 성능과 고가용성은 다루지 않습니다.
 - 호스트 재부팅 후 복구(`kolla0`, veth, 방화벽 규칙, `/dev/kvm` 접근 권한, libvirt 비활성)는 **시험하지 않았습니다.** 호스트 변경 사항은 `kolla-host-net.sh`와 systemd 유닛으로 영속화하도록 설계했지만 재부팅 검증은 남아 있습니다.
 - `/dev/kvm` 사용자 ACL은 재부팅 없이도 사라집니다. 이 서버에서 ACL을 추가한 뒤 임시 VM을 만들고 지우는 동안(약 1분) 장치의 ctime이 바뀌며 사라진 것이 관찰되었습니다(VM 삭제와 시각이 일치, 원인은 확인하지 못함). ACL이 필요한 것은 사용자 프로세스가 qemu를 직접 실행하는 이미지 빌드뿐이라, 키트는 이미지가 이미 있으면 ACL을 건드리지 않고 빌드 직전에만 추가합니다.
-- 클러스터 삭제 후 **같은 매니페스트로 재생성**할 수 있는지, 삭제 직후 정리가 끝나기까지의 시간은 아직 확인하지 않았습니다.
+- 클러스터 삭제 후 **같은 주문서로 재생성**하는 것을 한 번 시험했습니다(4단계 → 5단계 → 검증 a, b~e 모두 PASS). 이때 삭제 직후 OpenStack 정리 확인은 삭제 명령 종료 후 6초였습니다. 한 번의 관찰이므로 일반화하지 않습니다.
 - CAPO가 Kubernetes 1.36을 공식 지원 범위에 포함하는지, ORC v2.0.3과 CAPO v0.15.1의 공식 호환은 문서로 확인하지 못했고 **동작으로만 확인**했습니다.
 - 노드 VM 사양은 최소 수준입니다.
 - 서비스 검증은 배포·연동 상태 중심이며 로드밸런서, Ingress, 영구 볼륨은 범위 밖입니다.
@@ -205,8 +205,8 @@ make stage-6           # 6단계: 클러스터 삭제와 검증 f. 클러스터 
 | 1 | 완료 | 완료 | 작성됨, 이미 구축된 서버에서 preflight 11 PASS, dry-run 전부 SKIP, postcheck 40 PASS 확인(깨끗한 서버의 변경 단계는 미시험) |
 | 2 | 완료 | 완료 | 작성됨(apply, preflight, postcheck, verify-a). 이미 구축된 서버에서 preflight 15 PASS, dry-run SKIP, postcheck 20 PASS, 검증 a 7 PASS 확인(이미지 빌드·terraform apply 경로는 미시험) |
 | 3 | 완료 | 완료 | 작성됨(apply, preflight, postcheck). 이미 구축된 서버에서 preflight 18 PASS, dry-run 전부 SKIP, postcheck 29 PASS 확인(kind 생성·clusterctl init·NAT 추가 경로는 미시험) |
-| 4 | 완료 | 완료 | 작성됨(apply, preflight, postcheck, 주문서 템플릿). 이미 구축된 서버에서 preflight 20 PASS, dry-run 전부 SKIP, postcheck 18 PASS 확인(ORC 설치·Secret 생성·클러스터 생성 경로는 미시험) |
-| 5 | 완료 | 완료 | 작성됨(`stage5/`: apply, preflight, postcheck, verify-bcde). NotReady 상태의 실제 클러스터에서 apply 를 실행해 Calico·OCCM 설치, postcheck 17 PASS, 검증 b~e 14 PASS 확인. OCCM 을 Calico 보다 먼저 설치하는 순서로 성공함. 매니페스트 sha256 고정(수동 구축 때 받은 파일 기준). 새로 내려받는 경로와 CAPO 가 SG 규칙을 되돌리는지는 미시험 |
+| 4 | 완료 | 완료 | 작성됨(apply, preflight, postcheck, 주문서 템플릿). 이미 구축된 서버에서 preflight 20 PASS, dry-run 전부 SKIP, postcheck 18 PASS 확인(ORC 설치·Secret 생성·클러스터 생성 경로는 미시험). 삭제 뒤 같은 주문서로 재생성해 postcheck 18 PASS(노드 등록까지 약 4분, Floating IP 는 새 주소) 확인 |
+| 5 | 완료 | 완료 | 작성됨(`stage5/`: apply, preflight, postcheck, verify-bcde). NotReady 상태의 실제 클러스터에서 apply 를 실행해 Calico·OCCM 설치, postcheck 17 PASS, 검증 b~e 14 PASS 확인. OCCM 을 Calico 보다 먼저 설치하는 순서로 성공함. 매니페스트 sha256 고정(수동 구축 때 받은 파일 기준). 재생성한 클러스터에서 5단계를 다시 실행해 약 3분 30초에 완료, 검증 b~e 14 PASS(새 보안 그룹에는 Typha 규칙이 없어 5단계를 다시 해야 함). 새로 내려받는 경로와 CAPO 가 SG 규칙을 되돌리는지는 미시험 |
 | 6 | 완료 | 완료 | 작성됨(`stage6/`: apply(삭제), preflight, verify-f, compare.py). 실제 서버에서 `k8s-lab` 삭제를 실행해 확인: 삭제 명령 35초, 삭제 명령 종료 후 OpenStack 정리 확인까지 6초, 검증 f 17 PASS(CAPO 서버 3·Floating IP 1·보안 그룹 2·포트 4 정리, Terraform 자원 ID 보존). 시험 중 키트 오류 2건 수정(Cinder 없는 환경의 볼륨 조회 실패, Floating IP 자체 포트의 CAPO 자원 식별). 삭제 뒤 같은 주문서로 재생성은 미시험 |
 
 ## 13. 문서
