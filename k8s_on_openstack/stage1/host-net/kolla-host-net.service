@@ -1,0 +1,12 @@
+[Unit]
+Description=Kolla single-NIC host network (kolla0, veth pair, firewall rules)
+After=netfilter-persistent.service
+Before=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/kolla-host-net.sh
+
+[Install]
+WantedBy=multi-user.target
