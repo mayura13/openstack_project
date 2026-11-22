@@ -123,6 +123,8 @@ cd <키트 폴더>
 make preflight         # 0단계 설치 전 점검만
 make install           # 0단계 도구 설치까지
 make up                # 0~5단계 순서대로(미시험, 아래 설명 참고)
+make reset-plan        # 초기화 계획만 출력(아무것도 지우지 않음)
+make reset             # 초기화 실행(미시험, 아래 설명 참고)
 make stage-N           # N단계 전체(preflight -> apply -> postcheck). N = 0..6
 make stageN-plan       # N단계가 무엇을 바꿀지만 출력(dry-run). N = 1..6
 make verify            # 검증 a~f 전체. 상황에 맞는 것만 실행하고 삭제는 하지 않음
@@ -130,6 +132,7 @@ make stage-6           # 6단계: 클러스터 삭제와 검증 f. 클러스터 
 ```
 
 - `make up`은 0~5단계를 순서대로 실행합니다. 중간에 실패하면 멈추고, 이미 끝난 단계는 SKIP 하므로 다시 실행해도 됩니다. 0단계가 종료 코드 2(재로그인 필요)로 끝나면 다시 접속한 뒤 `make up`을 재실행하세요. 이미지 빌드(2단계)와 OpenStack 배포(1단계)가 있어 tmux 안에서 실행해야 합니다. **`make up` 전체는 아직 시험하지 않았습니다**(단계별 시험 범위는 구현 현황 표 참고).
+- `make reset-plan`은 지울 대상의 **이름과 ID**(OpenStack 서버, Terraform 자원, kind, Docker, 호스트 네트워크)를 보여 주고 계획만 출력합니다. `make reset`은 안쪽부터 워크로드 클러스터(6단계) → Terraform destroy와 삭제 확인 → kind → Kolla destroy → 상태 파일·설정·도구 → 호스트 네트워크 순으로 지웁니다. Terraform 상태 파일은 OpenStack 자원이 실제로 사라졌음을 목록 조회로 확인한 뒤에만 지우고, 조회가 실패하면 지워졌다고 보지 않습니다. 백업 해시 확인, tmux, 호스트 이름 입력을 요구하고 물리 NIC와 기존 방화벽 파일은 건드리지 않습니다. 옵션은 `RESET_OPTS="--with-docker --keep-node-image"`처럼 넘깁니다. **실제 서버에서 시험하지 않았습니다.**
 - 검증은 `verify-a`(OpenStack, 테스트 VM은 항상 삭제), `verify-bcde`(클러스터가 있을 때), `verify-f`(삭제 전후 기록이 있을 때)를 개별로도 실행할 수 있고, `make verify`가 이 셋을 묶어 표로 요약합니다. 클러스터를 삭제한 뒤에는 b~e가 SKIP되는 것이 정상이고, 삭제 뒤 다시 만들었다면 f가 SKIP됩니다(삭제 검증은 삭제 직후의 기록과 비교하는 것이라 재생성 뒤에는 의미가 없음).
 - 오래 걸리는 단계(노드 이미지 빌드 약 31분, OpenStack 배포 약 23분)는 **tmux 같은 별도 세션**에서 실행하세요. SSH가 끊겨도 계속 진행됩니다.
 - 확인 질문이 있는 명령의 출력을 `| tail` 같은 파이프로 가리지 않습니다. 승인 질문이 숨어 진행이 멈춘 것처럼 보입니다.
