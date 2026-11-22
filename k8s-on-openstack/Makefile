@@ -21,16 +21,18 @@
 #   make up             0~5단계를 순서대로 실행(각 단계의 확인 질문은 그대로 나옴). 끝나면 make verify 권장
 #   make clean-check    회차 시작 전 깨끗한 상태 확인 (읽기 전용)
 #   make install-plan   설치 계획만 출력(dry-run)
+#   make reset-plan     초기화 대상(이름·ID)과 계획만 출력(아무것도 지우지 않음). 옵션: RESET_OPTS="--with-docker --keep-node-image"
+#   make reset          초기화 실행(백업 해시 확인, tmux, 호스트 이름 입력 필요)
 #
 # 옵션: KIT_ASSUME_YES=1 (확인 질문 없이), KIT_LOG_DIR=<폴더>, FORCE_REINSTALL=1
 # 설치 단계가 종료 코드 2로 끝나면 실패가 아니라 "재접속 후 재실행" 안내다.
 
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
-.PHONY: help preflight install install-plan postcheck stage-0 clean-check stage1-preflight stage1-plan stage1-apply stage1-postcheck stage-1 stage2-preflight stage2-plan stage2-apply stage2-postcheck verify-a stage-2 stage3-preflight stage3-plan stage3-apply stage3-postcheck stage-3 stage4-preflight stage4-plan stage4-apply stage4-postcheck stage-4 stage5-preflight stage5-plan stage5-apply stage5-postcheck verify-bcde stage-5 stage6-preflight stage6-plan stage6-apply verify-f stage-6 verify up
+.PHONY: help preflight install install-plan postcheck stage-0 clean-check stage1-preflight stage1-plan stage1-apply stage1-postcheck stage-1 stage2-preflight stage2-plan stage2-apply stage2-postcheck verify-a stage-2 stage3-preflight stage3-plan stage3-apply stage3-postcheck stage-3 stage4-preflight stage4-plan stage4-apply stage4-postcheck stage-4 stage5-preflight stage5-plan stage5-apply stage5-postcheck verify-bcde stage-5 stage6-preflight stage6-plan stage6-apply verify-f stage-6 verify up reset-plan reset
 
 help:
-	@sed -n '2,27p' Makefile | sed 's/^# \{0,1\}//'
+	@sed -n '2,29p' Makefile | sed 's/^# \{0,1\}//'
 
 preflight:
 	@bash stage0/preflight.sh
@@ -204,3 +206,9 @@ up:
 	@$(MAKE) --no-print-directory stage-4
 	@$(MAKE) --no-print-directory stage-5
 	@echo "===== make up 완료. 'make verify' 로 검증 a~e 를 실행하세요 ====="
+
+reset-plan:
+	@bash scripts/reset-lab.sh $(RESET_OPTS)
+
+reset:
+	@bash scripts/reset-lab.sh --execute $(RESET_OPTS)

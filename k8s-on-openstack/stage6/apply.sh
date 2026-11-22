@@ -20,8 +20,42 @@ kit_init stage6 apply
 source "$KIT_ROOT/stage6/lib6.sh"
 
 BEFORE="$STAGE6_DIR/before"; AFTER="$STAGE6_DIR/after"; TIMING="$STAGE6_DIR/timing.txt"
-cluster_exists() { mkc -n default get cluster "$CLUSTER_NAME" >/dev/null 2>&1; }
-archive() { [[ -d "$1" ]] && mv "$1" "$1.$(date +%Y%m%d-%H%M%S)" || true; }
+cluster_exists() {
+  local result
+
+  [[ -x "$KUBECTL" ]] || die "kubectl 실행 파일이 없습니다" "$EXIT_FAIL"
+
+  # 목록 조회가 실패하면 API 장애로 판단하고 중단
+  mkc -n default get clusters.cluster.x-k8s.io >/dev/null ||
+    die "관리 클러스터 API 조회 실패: 삭제 중단" "$EXIT_FAIL"
+
+  # 정상 조회에서 이름이 없을 때만 클러스터 부재로 판단
+  result="$(mkc -n default get cluster "$CLUSTER_NAME" --ignore-not-found -o name)" ||
+    die "워크로드 클러스터 조회 실패: 삭제 중단" "$EXIT_FAIL"
+
+  if [[ -z "$result" ]]; then
+    return 1
+  fi
+
+  [[ "$result" == "cluster.cluster.x-k8s.io/$CLUSTER_NAME" ]] ||
+    die "예상하지 못한 클러스터 조회 결과: $result" "$EXIT_FAIL"
+
+  return 0
+}
+archive() {
+  local src="$1" dst
+
+  [[ -e "$src" ]] || return 0
+  [[ -d "$src" ]] ||
+    die "기존 기록 경로가 디렉터리가 아닙니다: $src" "$EXIT_FAIL"
+
+  dst="${src}.$(date +%Y%m%d-%H%M%S)"
+  [[ ! -e "$dst" ]] ||
+    die "기록 보관 대상이 이미 존재합니다: $dst" "$EXIT_FAIL"
+
+  mv -- "$src" "$dst" ||
+    die "기존 기록 보관 실패: $src" "$EXIT_FAIL"
+}
 
 kit_diagnose() {
   local t; t="$(tail -n 300 "$1" 2>/dev/null || true)"
@@ -48,7 +82,8 @@ need_record_before() {
 do_record_before() {
   archive "$BEFORE"; archive "$AFTER"; mkdir -p "$STAGE6_DIR"
   run_step "삭제 전 상태 기록" snapshot "$BEFORE" capo
-  [[ -s "$BEFORE/api_fip.txt" ]] || log_warn "API Floating IP 주소를 기록하지 못했습니다. Floating IP 정리는 확인하지 못합니다."
+  [[ -s "$BEFORE/api_fip.txt" ]] ||
+    die "API Floating IP 주소 기록 실패: 삭제 전 검증을 중단합니다" "$EXIT_FAIL"
   local n; n="$(python3 -c 'import json,sys; print(sum(1 for r in json.load(open(sys.argv[1])) if r["Name"].startswith(sys.argv[2]+"-")))' "$BEFORE/server.json" "$CLUSTER_NAME")"
   [[ "$n" -ge 1 ]] || die "OpenStack 에 ${CLUSTER_NAME}-* 서버가 없습니다. 삭제할 클러스터가 아닌 것 같아 중단합니다." "$EXIT_FAIL"
   log_done "기록 완료: 서버 ${n}대, 포트 $(python3 -c 'import json,sys; print(len(json.load(open(sys.argv[1]))))' "$BEFORE/capo_ports.json")개(클러스터 소유), API Floating IP $(cat "$BEFORE/api_fip.txt")"
@@ -56,9 +91,27 @@ do_record_before() {
 
 need_delete() { if cluster_exists; then REASON="Cluster ${CLUSTER_NAME} 있음"; return 0; fi; REASON="Cluster ${CLUSTER_NAME} 없음"; return 1; }
 confirm_delete() {
-  local vms fip
-  vms="$(os server list -f value -c Name 2>/dev/null | { grep "^${CLUSTER_NAME}-" || true; } | tr '\n' ' ')"
-  fip="$(mkc -n default get cluster "$CLUSTER_NAME" -o jsonpath='{.spec.controlPlaneEndpoint.host}' 2>/dev/null || true)"
+  local vms fip all_servers
+
+  all_servers="$(os server list -f value -c Name)" ||
+    die "OpenStack 서버 목록 조회 실패: 클러스터 삭제 중단" "$EXIT_FAIL"
+
+  vms="$(grep "^${CLUSTER_NAME}-" <<<"$all_servers" | tr '\n' ' ' || true)"
+
+  [[ -n "$vms" ]] ||
+    die "삭제 대상 CAPO 서버를 확인하지 못했습니다: 클러스터 삭제 중단" "$EXIT_FAIL"
+
+  fip="$(mkc -n default get cluster "$CLUSTER_NAME" -o jsonpath='{.spec.controlPlaneEndpoint.host}')" ||
+    die "Kubernetes API Floating IP 조회 실패: 클러스터 삭제 중단" "$EXIT_FAIL"
+
+  [[ -n "$fip" ]] ||
+    die "Kubernetes API Floating IP 주소가 비어 있습니다: 클러스터 삭제 중단" "$EXIT_FAIL"
+
+  [[ -s "$BEFORE/api_fip.txt" ]] ||
+    die "삭제 전 API Floating IP 기록이 없습니다: 클러스터 삭제 중단" "$EXIT_FAIL"
+
+  [[ "$fip" == "$(cat "$BEFORE/api_fip.txt")" ]] ||
+    die "현재 API Floating IP와 삭제 전 기록이 일치하지 않습니다: 클러스터 삭제 중단" "$EXIT_FAIL"
   log_warn "삭제 대상: Cluster ${CLUSTER_NAME} 와 OpenStack 자원 — 서버 [${vms:-?}], API Floating IP ${fip:-?}, 포트, 보안 그룹 2개(5단계에서 추가한 Typha 규칙 포함)"
   log_warn "워크로드 클러스터 안의 모든 것(Calico, OCCM, 시험 배포)이 함께 사라지며 되돌릴 수 없습니다."
   log_info "남는 것: Terraform 공용 기반(네트워크, 라우터, 키페어, flavor, 이미지), 관리 클러스터, 인증 Secret, 주문서(${CLUSTER_MANIFEST})"

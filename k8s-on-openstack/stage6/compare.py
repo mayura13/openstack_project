@@ -16,7 +16,13 @@ def load(d, kind):
     try:
         with open(p) as f:
             v = json.load(f)
-        return v if isinstance(v, list) else []
+        if not isinstance(v, list):
+            return None
+        if any(not isinstance(r, dict) for r in v):
+            return None
+        if any(not (r.get("ID") or r.get("Name")) for r in v):
+            return None
+        return v
     except Exception:
         return None
 
@@ -46,13 +52,24 @@ def main():
         print("\n".join(out)); return 1
 
     try:
-        fip_addr = open(os.path.join(bd, "api_fip.txt")).read().strip()
-    except Exception:
-        fip_addr = ""
-    try:
-        capo_port_ids = set(json.load(open(os.path.join(bd, "capo_ports.json"))))
-    except Exception:
-        capo_port_ids = set()
+        with open(os.path.join(bd, "api_fip.txt")) as f:
+            fip_addr = f.read().strip()
+        if not fip_addr:
+            raise ValueError("Floating IP 주소가 비어 있음")
+
+        with open(os.path.join(bd, "capo_ports.json")) as f:
+            ports = json.load(f)
+        if not isinstance(ports, list):
+            raise ValueError("CAPO 포트 목록이 배열이 아님")
+        if any(not isinstance(x, str) or not x for x in ports):
+            raise ValueError("CAPO 포트 ID 형식 오류")
+        capo_port_ids = set(ports)
+
+    except (OSError, ValueError, TypeError) as e:
+        emit("NG", "CAPO 삭제 전 기록 검증", "정상적인 Floating IP 및 포트 기록", str(e),
+             "삭제 전 스냅샷을 확인해야 함")
+        print("\n".join(out))
+        return 1
 
     sg_re = re.compile(r"^k8s-cluster-.*-%s-secgroup-" % re.escape(cl))
     owned = {k: set() for k, _ in KINDS}

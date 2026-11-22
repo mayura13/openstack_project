@@ -1,0 +1,69 @@
+{
+  "format_version": "1.2",
+  "resource_changes": [
+    {
+      "address": "openstack_compute_flavor_v2.node",
+      "change": {
+        "actions": [
+          "delete"
+        ]
+      }
+    },
+    {
+      "address": "openstack_compute_keypair_v2.node",
+      "change": {
+        "actions": [
+          "delete"
+        ]
+      }
+    },
+    {
+      "address": "openstack_images_image_v2.node",
+      "change": {
+        "actions": [
+          "delete"
+        ]
+      }
+    },
+    {
+      "address": "openstack_networking_network_v2.ext",
+      "change": {
+        "actions": [
+          "delete"
+        ]
+      }
+    },
+    {
+      "address": "openstack_networking_network_v2.k8s",
+      "change": {
+        "actions": [
+          "delete"
+        ]
+      }
+    },
+    {
+      "address": "openstack_networking_router_interface_v2.k8s",
+      "change": {
+        "actions": [
+          "delete"
+        ]
+      }
+    },
+    {
+      "address": "openstack_networking_router_v2.k8s",
+      "change": {
+        "actions": [
+          "delete"
+        ]
+      }
+    },
+    {
+      "address": "openstack_networking_subnet_v2.ext",
+      "change": {
+        "actions": [
+          "delete"
+        ]
+      }
+    }
+  ]
+}
