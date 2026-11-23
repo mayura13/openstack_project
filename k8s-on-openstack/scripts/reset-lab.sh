@@ -13,7 +13,7 @@
 # 지우지 않는 것: 물리 NIC 설정, 기존 방화벽 파일, ~/backup-*, ~/kit*, history, authorized_keys, 일반 apt 패키지, 호스트 이름
 set -Eeuo pipefail
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/common/common.sh"
-kit_usage() { sed -n '2,15p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
+kit_usage() { sed -n '2,13p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
 EXECUTE=0; WITH_DOCKER=0; KEEP_IMAGE=0; WITH_IMAGES=0; SKIP_TF=0; rest=()
 for a in "$@"; do
   case "$a" in
@@ -28,10 +28,8 @@ done
 kit_parse_args "${rest[@]+"${rest[@]}"}"
 kit_init reset reset-lab
 [[ "$KIT_DRY_RUN" == "1" ]] && EXECUTE=0
-# First-pass safety policy: prohibit destructive broad cleanup and bypasses.
-[[ "$WITH_DOCKER" == "0" ]] || die "--with-docker 는 공유 서버에서 허용하지 않습니다." "$EXIT_FAIL"
-[[ "$SKIP_TF" == "0" ]] || die "--skip-terraform 은 자원 검증을 우회하므로 허용하지 않습니다." "$EXIT_FAIL"
-[[ "$WITH_IMAGES" == "0" ]] || die "--with-kolla-images 는 첫 초기화에서 허용하지 않습니다." "$EXIT_FAIL"
+# 자원 검증을 우회하는 --skip-terraform 은 허용하지 않는다(OpenStack 이 살아 있으면 destroy 와 이름·ID 확인을 반드시 거친다).
+[[ "$SKIP_TF" == "0" ]] || die "--skip-terraform 은 tfstate 와 실제 자원의 일치를 확인하지 못해 허용하지 않습니다." "$EXIT_FAIL"
 
 OPENRC="$KOLLA_CONFIG_DIR/admin-openrc.sh"
 dk() { if docker ps >/dev/null 2>&1; then docker "$@"; else sudo -n docker "$@"; fi; }
@@ -48,8 +46,8 @@ safe_rm_home() {   # 홈 아래의 경로만 지운다. 백업과 키트 폴더,
 }
 api_up() { [[ -r "$KOLLA_CONFIG_DIR/clouds.yaml" && -x "$KOLLA_VENV/bin/openstack" ]] && os token issue -f value -c id >/dev/null 2>&1; }
 tf_state_count() {
-  [[ -d "$TF_COMMON_DIR" ]] || die "Terraform 디렉터리가 없습니다: $TF_COMMON_DIR" "$EXIT_FAIL"
-  [[ -x "$BIN_DIR/terraform" ]] || die "Terraform 실행 파일이 없습니다" "$EXIT_FAIL"
+  # 디렉터리나 실행 파일이 이미 없으면 지울 상태도 없다(이전 실행이 d_tf 까지 끝난 경우)
+  if [[ ! -d "$TF_COMMON_DIR" || ! -x "$BIN_DIR/terraform" ]]; then echo 0; return 0; fi
 
   local state n
   state="$(cd "$TF_COMMON_DIR" && "$BIN_DIR/terraform" state list)" ||
@@ -163,8 +161,10 @@ show_targets() {
 
 # ----------------------------------------------------------------- 단계별 조건과 동작
 p_cluster() {
-  [[ -x "$BIN_DIR/kubectl" ]] ||
-    die "kubectl 실행 파일이 없습니다. 삭제 중단" "$EXIT_FAIL"
+  # 이전 실행이 중간에 끊겼다면 kubectl/kind 가 이미 없을 수 있다. 관리 클러스터가 없으면 지울 워크로드도 없다.
+  if ! have_cmd kind || [[ ! -x "$BIN_DIR/kubectl" ]]; then return 1; fi
+  dk ps >/dev/null 2>&1 || die "Docker 조회 실패. 관리 클러스터 확인 불가: Reset 중단" "$EXIT_FAIL"
+  kind get clusters 2>/dev/null | grep -qxF "$KIND_CLUSTER" || return 1
 
   mkc -n default get clusters.cluster.x-k8s.io >/dev/null 2>&1 ||
     die "Kubernetes 관리 API 조회 실패. 삭제 중단" "$EXIT_FAIL"
@@ -227,6 +227,7 @@ d_cluster() {
 
 p_tfd() {
   [[ "$SKIP_TF" == "0" ]] || return 1
+  [[ -d "$TF_COMMON_DIR" && -x "$BIN_DIR/terraform" ]] || return 1
   local n
   n="$(tf_state_count)" || die "Terraform 상태 조회 실패: Reset 중단" "$EXIT_FAIL"
   [[ "$n" -gt 0 ]]
@@ -479,8 +480,7 @@ d_tfd() {
 }
 
 p_kind() {
-  have_cmd kind ||
-    die "kind 명령을 찾을 수 없습니다. 관리 클러스터 확인 불가: Reset 중단" "$EXIT_FAIL"
+  have_cmd kind || return 1
 
   dk ps >/dev/null 2>&1 ||
     die "Docker 조회 실패. 관리 클러스터 확인 불가: Reset 중단" "$EXIT_FAIL"
@@ -517,9 +517,12 @@ d_kind() {
   run_step "kind 관리 클러스터 ${KIND_CLUSTER} 삭제" kind delete cluster --name "$KIND_CLUSTER"
 }
 
-p_kolla() { return 1; } # Kolla destroy disabled: preserve host network and shared resources
+p_kolla() {   # kind 노드(${KIND_CLUSTER}-*) 말고 컨테이너가 있으면 Kolla 가 남은 것이다
+  have_cmd docker || return 1
+  dk ps >/dev/null 2>&1 || die "Docker 조회 실패. Kolla 컨테이너 확인 불가: Reset 중단" "$EXIT_FAIL"
+  dk ps -a --format '{{.Names}}' | grep -qvE "^(${KIND_CLUSTER}-|$)"
+}
 d_kolla() {
-  die "안전 검토 미완료: Kolla destroy는 OVS 브리지와 호스트 네트워크를 변경할 수 있어 실행을 차단합니다." "$EXIT_FAIL"
   [[ -x "$KOLLA_VENV/bin/kolla-ansible" ]] || die "kolla-ansible 이 없습니다(${KOLLA_VENV}). 컨테이너는 있는데 도구가 없으니 직접 정리해야 합니다." "$EXIT_FAIL"
   [[ -f "$KOLLA_INVENTORY" ]] || die "인벤토리가 없습니다(${KOLLA_INVENTORY})." "$EXIT_FAIL"
   api_up || die "OpenStack API 조회 실패: Kolla 삭제 중단" "$EXIT_FAIL"
@@ -541,7 +544,7 @@ d_kolla() {
     kolla-ansible destroy -i "$KOLLA_INVENTORY" --yes-i-really-really-mean-it "${extra[@]+"${extra[@]}"}"
 }
 
-p_tf() { return 1; } # Terraform state/config retained for audit and recovery
+p_tf() { [[ -d "$TF_COMMON_DIR" ]]; }
 d_tf() {
   local n
   n="$(tf_state_count)" || die "Terraform 상태 조회 실패: 디렉터리 삭제 중단" "$EXIT_FAIL"
@@ -551,24 +554,29 @@ d_tf() {
   fi
   log_step "Terraform 디렉터리 삭제: $TF_COMMON_DIR"; safe_rm_home "$TF_COMMON_DIR"
 }
-p_image() { return 1; } # Retain image build artifacts
+p_image() { [[ "$KEEP_IMAGE" == "0" ]] && { [[ -e "$IB_DIR" || -e "$IB_VENV" || -e "$IB_VARS_DIR" ]]; }; }
 d_image() { log_step "노드 이미지 빌드 산출물 삭제: $IB_DIR, $IB_VENV, $IB_VARS_DIR"; safe_rm_home "$IB_DIR"; safe_rm_home "$IB_VENV"; safe_rm_home "$IB_VARS_DIR"; }
-p_key()   { return 1; } # Retain SSH keys
+p_key()   { [[ -e "$NODE_KEY" || -e "${NODE_KEY}.pub" ]]; }
 d_key()   { log_step "노드 SSH 키 삭제: $NODE_KEY(.pub) — 2단계가 새로 만든다"; safe_rm_home "$NODE_KEY"; safe_rm_home "${NODE_KEY}.pub"; }
-p_capi()  { return 1; } # Retain manifests and logs
+p_capi()  { [[ -e "$CAPI_DIR" ]]; }
 d_capi()  { log_step "주문서, kubeconfig, 매니페스트, 삭제 전후 기록 폴더 삭제: $CAPI_DIR"; safe_rm_home "$CAPI_DIR"; }
-p_kcfg()  { return 1; } # Retain credentials/config for recovery
+p_kcfg()  { [[ -e /etc/kolla || -e "$KOLLA_INVENTORY" ]]; }
 d_kcfg()  {
   [[ "$KOLLA_CONFIG_DIR" == "/etc/kolla" ]] || die "KOLLA_CONFIG_DIR 가 /etc/kolla 가 아니라 지우지 않습니다: ${KOLLA_CONFIG_DIR}" "$EXIT_FAIL"
   log_step "Kolla 설정 삭제: /etc/kolla(globals.yml, passwords.yml, clouds.yaml 포함), ${KOLLA_INVENTORY}"
   sudo rm -rf -- /etc/kolla; [[ -e "$KOLLA_INVENTORY" ]] && safe_rm_home "$KOLLA_INVENTORY"; return 0
 }
-p_venv()  { return 1; } # Retain tools
+p_venv()  { [[ -d "$KOLLA_VENV" ]]; }
 d_venv()  { log_step "Kolla 가상환경 삭제: $KOLLA_VENV"; safe_rm_home "$KOLLA_VENV"; }
-p_tools() { return 1; } # Retain tools
+p_tools() { local t; for t in kubectl terraform kind clusterctl; do [[ -e "$BIN_DIR/$t" ]] && return 0; done; return 1; }
 d_tools() { local t; log_step "도구 4종 삭제: ${BIN_DIR}/{kubectl,terraform,kind,clusterctl}"; for t in kubectl terraform kind clusterctl; do sudo rm -f -- "$BIN_DIR/$t"; done; }
 
-p_hostnet() { return 1; } # Network cleanup requires separate review and approval
+p_hostnet() {
+  any_rule && return 0
+  ip link show "$KOLLA_NET_IF" >/dev/null 2>&1 && return 0
+  ip link show "$EXT_IF" >/dev/null 2>&1 && return 0
+  [[ -e "$HOST_NET_UNIT" || -e "$HOST_NET_SCRIPT" || -e "$HOST_NET_SYSCTL" ]]
+}
 d_hostnet() {
   log_step "호스트 네트워크 정리: 서비스 ${HOST_NET_UNIT##*/}, 인터페이스 ${KOLLA_NET_IF}/${EXT_IF}, 키트가 넣은 iptables 규칙, 관련 파일"
   local before after r a i d; before="$(net_snapshot)"
@@ -589,7 +597,7 @@ d_hostnet() {
     || log_warn "물리 NIC ${HOST_NIC} 의 주소 또는 기본 경로가 바뀌었습니다(해시 ${before} -> ${after}). SSH 가 살아 있는지, ip route 를 확인하세요."
 }
 
-p_docker() { return 1; } # Never purge shared Docker
+p_docker() { [[ "$WITH_DOCKER" == "1" ]] && { have_cmd docker || [[ -e /var/lib/docker || -e /etc/docker ]]; }; }
 d_docker() {
   log_step "Docker 제거: 패키지, /var/lib/docker, /var/lib/containerd, /etc/docker, docker 그룹 구성원 자격"
   local pk=() p
@@ -628,7 +636,7 @@ step() {   # step <제목> <조건함수> <동작함수>
       fi
       ;;
     1)
-      log_skip "$title — 대상 없음 또는 정책상 보존"
+      log_skip "$title — 대상 없음"
       ;;
     *)
       die "삭제 대상 확인 실패: $title (종료 코드: $rc)" "$EXIT_FAIL"
@@ -672,10 +680,9 @@ guard() {
 }
 confirm_reset() {
   local hn; hn="$(hostname)"
-  log_warn "부분 초기화: CAPO 워크로드 클러스터, Terraform 관리 자원, kind mgmt 클러스터만 삭제합니다. 삭제한 자원은 복구가 필요할 수 있습니다."
-  log_info "복구 방법: 백업과 Terraform 상태를 보존하며, 필요한 자원은 키트로 재구축해야 합니다. 재구축 전 백업과 설정을 확인하세요."
-  log_info "보존 대상: Kolla 컨테이너·볼륨, /etc/kolla, 호스트 네트워크, Docker, 기존 libvirt 네트워크·풀·디스크, VM 백업, Terraform 상태 파일과 설정, ~/capi, SSH 키."
-  log_info "Docker 엔진과 Kolla 컨테이너는 보존합니다. --with-docker 옵션이 지정되어도 이 부분 초기화에서는 Docker를 삭제하지 않습니다."
+  log_warn "전체 초기화: 워크로드 클러스터, Terraform 자원, kind, OpenStack(Kolla) 컨테이너·볼륨, /etc/kolla, 키트 도구, 호스트 네트워크 설정$([[ "$WITH_DOCKER" == "1" ]] && echo ', Docker')까지 지웁니다. 되돌릴 수 없습니다."
+  log_info "보존: 물리 NIC 설정, ~/backup-*, ~/kit*, history, authorized_keys, 호스트 이름, 일반 apt 패키지, 기존 libvirt 네트워크·풀·디스크(참고만 함)."
+  log_info "복구: 'make up' 으로 0~5단계를 다시 구축합니다(이미지 빌드 포함 시 오래 걸림)."
   if [[ "${KIT_CONFIRM_RESET:-}" == "$hn" ]]; then log_info "KIT_CONFIRM_RESET 이 호스트 이름과 같으므로 진행합니다."; return 0; fi
   [[ -t 0 ]] || die "확인이 필요하지만 터미널이 아닙니다. 터미널에서 실행하거나 KIT_CONFIRM_RESET=${hn} 로 명시하세요(--yes 로는 건너뛸 수 없습니다)." "$EXIT_USAGE"
   local ans; read -r -p "초기화하려면 이 서버의 호스트 이름(${hn})을 그대로 입력하세요: " ans
@@ -701,7 +708,7 @@ active=""; for u in libvirtd.service libvirtd.socket virtlogd.service virtlogd.s
 [[ -z "$active" ]] && log_info "호스트 libvirt 계열은 중지 상태로 남깁니다(1단계의 '호스트 libvirt 중지' 단계는 SKIP 되므로 이 변경 경로는 시험되지 않습니다)." || log_warn "호스트 libvirt 계열이 활성: ${active}"
 
 if [[ "$EXECUTE" == "1" ]]; then
-  log_done "부분 초기화 실행 종료. 남은 인터페이스: $(ip -br link | awk '{print $1}' | tr '\n' ' ')"
+  log_done "초기화 실행 종료. 남은 인터페이스: $(ip -br link | awk '{print $1}' | tr '\n' ' ')"
   log_info "깨끗한 상태 확인(stage0/check-clean-state.sh)을 실행합니다. libvirt 의 기존 네트워크·풀은 이 스크립트가 지우지 않아 FAIL 로 남을 수 있습니다."
   bash "$KIT_ROOT/stage0/check-clean-state.sh" || log_warn "깨끗한 상태 확인에 FAIL 이 있습니다. 위 항목을 확인하세요."
   log_info "다음: docker 그룹을 뺐다면 로그아웃 후 다시 접속하고, 'make up' 을 실행하세요."
