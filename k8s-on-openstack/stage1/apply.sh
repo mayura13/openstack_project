@@ -202,11 +202,25 @@ do_libvirt() {
   run_step "호스트 libvirt 계열 유닛 중지·비활성" sudo systemctl disable --now "${LIBVIRT_TODO[@]}"
 }
 
+# /etc/apparmor.d/disable 은 폴더여야 한다. Kolla 의 apparmor_libvirt 역할이 그 안에 usr.sbin.libvirtd 링크를 만든다.
+# 이전 구축에서 폴더가 없을 때 'ln -s ... /etc/apparmor.d/disable' 이 실행되면 폴더 이름 자체가 링크가 되고,
+# bootstrap-servers 가 "Not a directory: /etc/apparmor.d/disable/usr.sbin.libvirtd" 로 실패한다(2026-11-24 확인).
+fix_apparmor_disable_dir() {
+  local d=/etc/apparmor.d/disable
+  if [[ -L "$d" || ( -e "$d" && ! -d "$d" ) ]]; then
+    local bak; bak="/var/backups/apparmor-disable.$(date +%Y%m%d%H%M%S)"
+    log_warn "$d 가 폴더가 아닙니다($(stat -c '%F' "$d")). $bak 로 옮기고 폴더를 만듭니다."
+    sudo mv "$d" "$bak" || return 1
+  fi
+  [[ -d "$d" ]] || sudo mkdir -p "$d"
+}
+
 need_bootstrap() {
   if have_cmd docker && systemctl is-active --quiet docker 2>/dev/null; then REASON="docker 설치됨, 서비스 active"; return 1; fi
   REASON="docker 없음 또는 서비스 비활성"; return 0
 }
 do_bootstrap() {
+  run_step "/etc/apparmor.d/disable 폴더 확인" fix_apparmor_disable_dir
   run_step "kolla-ansible bootstrap-servers" "$KOLLA_ANSIBLE" bootstrap-servers -i "$KOLLA_INVENTORY"
   # bootstrap 이 /etc/hosts 에 VIP 를 localhost 로 묶는 줄을 쓸 수 있다(수동 구축에서 prechecks 실패의 원인). 다시 정리한다.
   run_step "bootstrap 후 /etc/hosts 재확인" fix_hosts_entry

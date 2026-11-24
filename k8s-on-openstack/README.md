@@ -169,6 +169,9 @@ make stage-6           # 6단계: 클러스터 삭제와 검증 f. 클러스터 
 | 1 | `/var/run/libvirt/libvirt-sock` 점검 실패 | 호스트 libvirtd 실행 중 | 호스트 libvirt 서비스·소켓 중지 |
 | 1 | MariaDB `Address already in use` | `enable_proxysql` 기본값 yes로 3306 점유 | `enable_proxysql: "no"` |
 | 1 | `Could not read clouds.yaml configuration file` | openstacksdk 4.23.0에 파일 누락 | `openstacksdk==4.22.0` |
+| 1 | `bootstrap-servers` 가 `Not a directory: /etc/apparmor.d/disable/usr.sbin.libvirtd` 로 실패 | 이전 구축에서 `/etc/apparmor.d/disable` 이 폴더가 아니라 링크로 만들어짐 | 키트가 bootstrap 직전에 링크·파일을 `/var/backups` 로 옮기고 폴더 생성 |
+| 1 | `kolla-ansible deploy` 중 컨테이너가 `Created` 상태로 `Container timed out` | Kolla 가 Docker 시작 응답을 기본 120초 기다리다 포기(직접 `docker start` 하면 즉시 시작됨) | `docker_client_timeout: 300` (키트가 globals.yml 에 설정) |
+| 1 | postcheck `Kolla 이미지 수 >= 31, 실제 29` | 기준값이 수동 구축 때의 이미지 수 | `KOLLA_MIN_IMAGES` 기본값 29 |
 | 2 | VM `ERROR`, `console.log: No such file or directory` | 호스트 `virtlogd`/`virtlockd` 실행 중(가설) | 호스트 `virtlogd`/`virtlockd` 중지, `nova_libvirt` 재시작 |
 | 2 | 이미지 빌드가 `/dev/kvm` 접근 불가 | 장치 그룹이 `kvm`이 아님 | 실행 사용자에게 접근 허용(`setfacl`, 재부팅이나 장치 재생성 시 사라질 수 있음) |
 | 3 | `clusterctl init`이 10분 후 `context deadline exceeded` | Kolla가 Docker `iptables:false`로 설정해 컨테이너 대역 NAT 없음 | kind 대역 `MASQUERADE` 규칙 추가 |
