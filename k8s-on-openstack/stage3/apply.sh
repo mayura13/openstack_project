@@ -97,7 +97,9 @@ do_nat() {
   run_step "호스트 네트워크 스크립트 백업" sudo cp -pn "$HOST_NET_SCRIPT" "${HOST_NET_SCRIPT}.bak-before-kind"
   run_step "호스트 네트워크 스크립트 갱신" sudo install -m 0755 "$KIT_TMP/new.sh" "$HOST_NET_SCRIPT"
   run_step "호스트 네트워크 적용(멱등 스크립트 재실행)" sudo systemctl restart kolla-host-net.service
-  need_nat && die "규칙을 적용했지만 아직 부족합니다: $REASON" "$EXIT_FAIL"
+  # 'need_nat && die' 를 함수 마지막 줄에 두면, 규칙이 다 들어가 need_nat 이 1 을 돌려줄 때 함수 자체가 1 로 끝나
+  # set -e 에 걸린다(2026-11-25, 깨끗한 서버에서 처음 이 단계가 실행될 때 "예기치 못한 오류 return 1"). if 로 감싼다.
+  if need_nat; then die "규칙을 적용했지만 아직 부족합니다: $REASON" "$EXIT_FAIL"; fi
 }
 
 need_kind_cluster() {
