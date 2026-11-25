@@ -107,8 +107,27 @@ need_kind_cluster() {
   if kind_exists; then REASON="클러스터 $KIND_CLUSTER 있음(Ready 여부는 wait_ready 에서 확인)"; return 1; fi
   REASON="클러스터 $KIND_CLUSTER 없음"; return 0
 }
+# kind 는 비어 있는 대역 중 첫 번째를 골라 'kind' 네트워크를 만든다. 이전 Docker 가 남긴 브리지(br-*)가 KIND_NET_CIDR 을
+# 쥐고 있으면 다른 대역(예: 172.18.0.0/16)이 잡혀 NAT/FORWARD 규칙과 어긋난다(2026-11-25 확인).
+# kind 는 이미 있는 'kind' 네트워크를 그대로 쓰므로, 클러스터를 만들기 전에 지정한 대역으로 직접 만든다.
+ensure_kind_network() {
+  local cur; cur="$(kind_subnet)"
+  if [[ -n "$cur" ]]; then
+    [[ "$cur" == "$KIND_NET_CIDR" ]] && return 0
+    die "docker 네트워크 kind 가 이미 ${cur} 대역으로 있습니다(기대 ${KIND_NET_CIDR}). 사용하는 컨테이너가 없으면 'docker network rm kind' 후 다시 실행하세요." "$EXIT_FAIL"
+  fi
+  local gw holder; gw="${KIND_NET_CIDR%/*}"; gw="${gw%.*}.1"
+  holder="$(ip -4 -o addr show 2>/dev/null | awk -v g="${gw}/" 'index($4,g)==1 {print $2; exit}')"
+  if [[ -n "$holder" ]]; then
+    die "${gw} 를 이미 인터페이스 ${holder} 가 쓰고 있어 kind 네트워크(${KIND_NET_CIDR})를 만들 수 없습니다. 'docker network ls' 에 없는 이전 Docker 브리지라면 'sudo ip link delete ${holder}' 후 다시 실행하세요." "$EXIT_FAIL"
+  fi
+  docker network create -d bridge --subnet "$KIND_NET_CIDR" --gateway "$gw" \
+    -o com.docker.network.bridge.enable_ip_masquerade=true -o com.docker.network.driver.mtu=1500 kind
+}
+
 do_kind_cluster() {
   mkdir -p "$HOME/.kube"
+  run_step "docker 네트워크 kind 를 ${KIND_NET_CIDR} 로 준비" ensure_kind_network
   [[ -f "$HOME/.kube/config" ]] && run_step "kubeconfig 백업" cp -n "$HOME/.kube/config" "$HOME/.kube/config.bak-kit"
   run_step "kind create cluster" "$KIND" create cluster --name "$KIND_CLUSTER" --image "$KIND_NODE_IMAGE"
   local sub; sub="$(kind_subnet)"
