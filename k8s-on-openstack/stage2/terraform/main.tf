@@ -49,6 +49,10 @@ resource "openstack_networking_subnet_v2" "k8s" {
 resource "openstack_networking_router_v2" "k8s" {
   name                = "k8s-router"
   external_network_id = openstack_networking_network_v2.ext.id
+
+  # 외부 서브넷이 만들어진 뒤에 라우터를 만든다. external_network_id 만으로는 서브넷과의 순서가 보장되지 않아,
+  # 라우터가 먼저 만들어지면 게이트웨이 포트가 IP 없이 생기고(external_fixed_ips: []) Floating IP 로 접속할 수 없다(2026-11-25 확인).
+  depends_on = [openstack_networking_subnet_v2.ext]
 }
 
 resource "openstack_networking_router_interface_v2" "k8s" {
